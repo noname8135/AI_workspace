@@ -2,7 +2,7 @@
 """
 CourtReserve Multi-Location Auto-Booking Script
 Tries Lifetime Fitness first (sId=16995), then Buchser High (sId=16996) as fallback
-Both now support full automated booking with proper API parameters.
+Uses identical booking logic for both locations.
 """
 
 import requests, sys, time, datetime, random, re, logging, os
@@ -37,7 +37,7 @@ ORG_ID   = os.getenv("LIFETIME_ORG_ID", "13234")
 
 BASE_URL = "https://app.courtreserve.com"
 
-# Location configs
+# Location configs (using identical booking logic for both)
 LOCATIONS = {
     "Lifetime": {
         "sId": "16995",
@@ -48,7 +48,6 @@ LOCATIONS = {
         "sId": "16996",
         "courtTypeId": "2",
         "courts": [1, 2, 3, 4, 6, 7, 8],
-        "reservationType": "69711",  # Buchser-specific
     }
 }
 
@@ -61,7 +60,7 @@ TIME_SLOTS = [
     ("5:00 PM", "6:30 PM"),
 ]
 
-# Tomorrow's date (book for same weekday next week)
+# Target date (book for same weekday next week)
 TARGET_DATE = datetime.date.today() + datetime.timedelta(days=7)
 TARGET_DATE_STR = TARGET_DATE.strftime("%-m/%-d/%Y")
 # ─────────────────────────────────────────────────────────────────────────────
@@ -106,7 +105,7 @@ def login():
 
 
 def get_booking_tokens(s, location_name):
-    """Get CSRF token and request data for a location."""
+    """Get requestData and CSRF token for a location."""
     try:
         sid = LOCATIONS[location_name]["sId"]
         bookings_url = f"{BASE_URL}/Online/Reservations/Bookings/{ORG_ID}?sId={sid}"
@@ -114,16 +113,9 @@ def get_booking_tokens(s, location_name):
         logging.info(f"Fetching tokens for {location_name}...")
         r = s.get(bookings_url)
         
-        # Try multiple patterns for requestData extraction
+        # Extract requestData (works for both Lifetime and Buchser)
         req_data_match = re.search(r'requestData\s*=\s*["\']([^"\']+)["\']', r.text)
-        if not req_data_match:
-            req_data_match = re.search(r'requestData["\']?\s*:\s*["\']([^"\']+)["\']', r.text)
-        if not req_data_match:
-            req_data_match = re.search(r'"requestData"\s*:\s*["\']([^"\']+)["\']', r.text)
-        
         csrf_match = re.search(r'__RequestVerificationToken["\']?\s*value=["\']([^"\']+)["\']', r.text)
-        if not csrf_match:
-            csrf_match = re.search(r'__RequestVerificationToken["\']?\s*[=:]\s*["\']([^"\']+)["\']', r.text)
         
         if not req_data_match:
             logging.warning(f"Could not extract requestData for {location_name}")
@@ -139,13 +131,14 @@ def get_booking_tokens(s, location_name):
 
 
 def book_court(s, location_name, time_start, time_end, court_id, tokens):
-    """Try to book a specific court at a location."""
+    """Try to book a specific court at a location using identical logic for both."""
     try:
         sid = LOCATIONS[location_name]["sId"]
         court_type_id = LOCATIONS[location_name]["courtTypeId"]
         
         booking_url = f"{BASE_URL}/Online/ReservationsApi/CreateReservation/{ORG_ID}"
         
+        # Use IDENTICAL booking payload for both locations
         data = {
             "Date": TARGET_DATE_STR,
             "StartTime": time_start,
@@ -157,10 +150,7 @@ def book_court(s, location_name, time_start, time_end, court_id, tokens):
             "MemberId": "6710116",
             "MembershipId": "141172",
             "requestData": tokens["requestData"],
-            "__RequestVerificationToken": tokens["csrf"],
-            "OrgId": ORG_ID,
-            "ReservationTypeId": LOCATIONS[location_name].get("reservationType", "69711"),
-            "DisclosureAgree": "true"
+            "__RequestVerificationToken": tokens["csrf"]
         }
         
         r = s.post(booking_url, data=data, timeout=10)
@@ -189,6 +179,8 @@ def try_location(s, location_name):
     if not tokens:
         logging.warning(f"Could not get tokens for {location_name}")
         return None
+    
+    logging.info(f"Got tokens, attempting {len(TIME_SLOTS)} time slots...")
     
     # Try each time slot
     for time_start, time_end in TIME_SLOTS:
