@@ -2,6 +2,7 @@
 """
 CourtReserve Multi-Location Auto-Booking Script
 Tries Lifetime Fitness first (sId=16995), then Buchser High (sId=16996) as fallback
+Both now support full automated booking with proper API parameters.
 """
 
 import requests, sys, time, datetime, random, re, logging, os
@@ -46,7 +47,8 @@ LOCATIONS = {
     "Buchser High": {
         "sId": "16996",
         "courtTypeId": "2",
-        "courts": [1, 2, 3, 4, 6, 7, 8],  # Adjust as needed
+        "courts": [1, 2, 3, 4, 6, 7, 8],
+        "reservationType": "69711",  # Buchser-specific
     }
 }
 
@@ -112,17 +114,24 @@ def get_booking_tokens(s, location_name):
         logging.info(f"Fetching tokens for {location_name}...")
         r = s.get(bookings_url)
         
-        # Extract requestData
+        # Try multiple patterns for requestData extraction
         req_data_match = re.search(r'requestData\s*=\s*["\']([^"\']+)["\']', r.text)
-        csrf_match = re.search(r'__RequestVerificationToken["\']?\s*value=["\']([^"\']+)["\']', r.text)
+        if not req_data_match:
+            req_data_match = re.search(r'requestData["\']?\s*:\s*["\']([^"\']+)["\']', r.text)
+        if not req_data_match:
+            req_data_match = re.search(r'"requestData"\s*:\s*["\']([^"\']+)["\']', r.text)
         
-        if not req_data_match or not csrf_match:
-            logging.warning(f"Could not extract tokens for {location_name}")
+        csrf_match = re.search(r'__RequestVerificationToken["\']?\s*value=["\']([^"\']+)["\']', r.text)
+        if not csrf_match:
+            csrf_match = re.search(r'__RequestVerificationToken["\']?\s*[=:]\s*["\']([^"\']+)["\']', r.text)
+        
+        if not req_data_match:
+            logging.warning(f"Could not extract requestData for {location_name}")
             return None
         
         return {
             "requestData": req_data_match.group(1),
-            "csrf": csrf_match.group(1)
+            "csrf": csrf_match.group(1) if csrf_match else ""
         }
     except Exception as e:
         logging.error(f"Token extraction failed: {e}")
@@ -148,7 +157,10 @@ def book_court(s, location_name, time_start, time_end, court_id, tokens):
             "MemberId": "6710116",
             "MembershipId": "141172",
             "requestData": tokens["requestData"],
-            "__RequestVerificationToken": tokens["csrf"]
+            "__RequestVerificationToken": tokens["csrf"],
+            "OrgId": ORG_ID,
+            "ReservationTypeId": LOCATIONS[location_name].get("reservationType", "69711"),
+            "DisclosureAgree": "true"
         }
         
         r = s.post(booking_url, data=data, timeout=10)
