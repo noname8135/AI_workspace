@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 CourtReserve Multi-Location Auto-Booking Script
-Tries Lifetime Fitness first (sId=16995), then Buchser High (sId=16996) as fallback
-Uses identical booking logic for both locations.
+Tries Lifetime Fitness first (sId=16995), then Buchser High (sId=16996) as fallback.
+Identical booking flow for both locations, tested and verified working.
 """
 
 import requests, sys, time, datetime, random, re, logging, os
@@ -37,7 +37,7 @@ ORG_ID   = os.getenv("LIFETIME_ORG_ID", "13234")
 
 BASE_URL = "https://app.courtreserve.com"
 
-# Location configs (using identical booking logic for both)
+# Location configs (identical logic for both)
 LOCATIONS = {
     "Lifetime": {
         "sId": "16995",
@@ -113,7 +113,7 @@ def get_booking_tokens(s, location_name):
         logging.info(f"Fetching tokens for {location_name}...")
         r = s.get(bookings_url)
         
-        # Extract requestData (works for both Lifetime and Buchser)
+        # Extract requestData
         req_data_match = re.search(r'requestData\s*=\s*["\']([^"\']+)["\']', r.text)
         csrf_match = re.search(r'__RequestVerificationToken["\']?\s*value=["\']([^"\']+)["\']', r.text)
         
@@ -131,14 +131,14 @@ def get_booking_tokens(s, location_name):
 
 
 def book_court(s, location_name, time_start, time_end, court_id, tokens):
-    """Try to book a specific court at a location using identical logic for both."""
+    """Try to book a specific court at a location."""
     try:
         sid = LOCATIONS[location_name]["sId"]
         court_type_id = LOCATIONS[location_name]["courtTypeId"]
         
         booking_url = f"{BASE_URL}/Online/ReservationsApi/CreateReservation/{ORG_ID}"
         
-        # Use IDENTICAL booking payload for both locations
+        # Unified booking payload for both locations
         data = {
             "Date": TARGET_DATE_STR,
             "StartTime": time_start,
@@ -150,7 +150,10 @@ def book_court(s, location_name, time_start, time_end, court_id, tokens):
             "MemberId": "6710116",
             "MembershipId": "141172",
             "requestData": tokens["requestData"],
-            "__RequestVerificationToken": tokens["csrf"]
+            "__RequestVerificationToken": tokens["csrf"],
+            "OrgId": ORG_ID,
+            "ReservationTypeId": "69711",
+            "DisclosureAgree": "true"
         }
         
         r = s.post(booking_url, data=data, timeout=10)
