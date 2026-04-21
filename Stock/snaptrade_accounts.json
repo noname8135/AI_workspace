@@ -1,0 +1,154 @@
+[
+  {
+    "id": "6372f82f-fb5f-445a-862d-3e9768113e70",
+    "brokerage_authorization": "7115ec7f-c48d-45e2-97a7-a3847ad4cb92",
+    "portfolio_group": "6ffef705-a26e-4836-a813-c0831d1d571b",
+    "name": "BrokerageLink Roth",
+    "number": "*****1488",
+    "institution_account_id": "675482347",
+    "institution_name": "Fidelity",
+    "meta": {
+      "account_id": "675482347",
+      "institution_name": "Fidelity"
+    },
+    "cash_restrictions": [],
+    "created_date": "2026-04-21T12:48:32.831286Z",
+    "funding_date": null,
+    "opening_date": null,
+    "sync_status": {
+      "holdings": {
+        "last_successful_sync": "2026-04-21T12:49:12.831394+00:00",
+        "initial_sync_completed": true
+      },
+      "transactions": {
+        "last_successful_sync": "2026-04-20",
+        "first_transaction_date": "2025-09-11",
+        "initial_sync_completed": true
+      }
+    },
+    "balance": {
+      "total": {
+        "amount": 16752.1,
+        "currency": "USD"
+      }
+    },
+    "raw_data": null,
+    "raw_type": "NP",
+    "status": "open",
+    "is_paper": false
+  },
+  {
+    "id": "4c6658c3-0fcb-4bd5-8346-98674ae0d30d",
+    "brokerage_authorization": "7115ec7f-c48d-45e2-97a7-a3847ad4cb92",
+    "portfolio_group": "022dbfd2-ef73-4e10-8184-439136bf98a6",
+    "name": "ROTH IRA",
+    "number": "*****6954",
+    "institution_account_id": "1996784222",
+    "institution_name": "Fidelity",
+    "meta": {
+      "account_id": "1996784222",
+      "institution_name": "Fidelity"
+    },
+    "cash_restrictions": [],
+    "created_date": "2026-04-21T12:48:32.845526Z",
+    "funding_date": null,
+    "opening_date": null,
+    "sync_status": {
+      "holdings": {
+        "last_successful_sync": "2026-04-21T12:49:14.343826+00:00",
+        "initial_sync_completed": true
+      },
+      "transactions": {
+        "last_successful_sync": "2026-04-20",
+        "first_transaction_date": "2025-06-06",
+        "initial_sync_completed": true
+      }
+    },
+    "balance": {
+      "total": {
+        "amount": 54118.75,
+        "currency": "USD"
+      }
+    },
+    "raw_data": null,
+    "raw_type": "ROTH",
+    "status": "open",
+    "is_paper": false
+  },
+  {
+    "id": "78d44a9d-71f9-4f4a-a936-a3199ad80ef5",
+    "brokerage_authorization": "7115ec7f-c48d-45e2-97a7-a3847ad4cb92",
+    "portfolio_group": "19a0c1c8-a7f6-497e-a6b5-f6b29dc13b94",
+    "name": "Health Savings Account(NV",
+    "number": "*****8045",
+    "institution_account_id": "2128742623",
+    "institution_name": "Fidelity",
+    "meta": {
+      "account_id": "2128742623",
+      "institution_name": "Fidelity"
+    },
+    "cash_restrictions": [],
+    "created_date": "2026-04-21T12:48:32.840729Z",
+    "funding_date": null,
+    "opening_date": null,
+    "sync_status": {
+      "holdings": {
+        "last_successful_sync": "2026-04-21T12:49:16.513048+00:00",
+        "initial_sync_completed": true
+      },
+      "transactions": {
+        "last_successful_sync": "2026-04-20",
+        "first_transaction_date": "2024-04-30",
+        "initial_sync_completed": true
+      }
+    },
+    "balance": {
+      "total": {
+        "amount": 14605.55,
+        "currency": "USD"
+      }
+    },
+    "raw_data": null,
+    "raw_type": "HSA",
+    "status": "open",
+    "is_paper": false
+  },
+  {
+    "id": "1724c0c5-9459-4a84-9c9f-b40b2271de0c",
+    "brokerage_authorization": "7115ec7f-c48d-45e2-97a7-a3847ad4cb92",
+    "portfolio_group": "11e8d4eb-ee80-4d22-b635-afd4ba2a6fb1",
+    "name": "BrokerageLink",
+    "number": "*****1487",
+    "institution_account_id": "675482378",
+    "institution_name": "Fidelity",
+    "meta": {
+      "account_id": "675482378",
+      "institution_name": "Fidelity"
+    },
+    "cash_restrictions": [],
+    "created_date": "2026-04-21T12:48:32.836414Z",
+    "funding_date": null,
+    "opening_date": null,
+    "sync_status": {
+      "holdings": {
+        "last_successful_sync": "2026-04-21T12:49:15.698025+00:00",
+        "initial_sync_completed": true
+      },
+      "transactions": {
+        "last_successful_sync": "2026-04-20",
+        "first_transaction_date": "2025-09-11",
+        "initial_sync_completed": true
+      }
+    },
+    "balance": {
+      "total": {
+        "amount": 156498.74,
+        "currency": "USD"
+      }
+    },
+    "raw_data": null,
+    "raw_type": "NP",
+    "status": "open",
+    "is_paper": false
+  }
+]

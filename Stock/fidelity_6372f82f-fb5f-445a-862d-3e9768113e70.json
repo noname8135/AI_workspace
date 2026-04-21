@@ -1,0 +1,584 @@
+{
+  "account": {
+    "id": "6372f82f-fb5f-445a-862d-3e9768113e70",
+    "brokerage_authorization": "7115ec7f-c48d-45e2-97a7-a3847ad4cb92",
+    "portfolio_group": "6ffef705-a26e-4836-a813-c0831d1d571b",
+    "name": "BrokerageLink Roth",
+    "number": "*****1488",
+    "institution_account_id": "675482347",
+    "institution_name": "Fidelity",
+    "meta": {
+      "account_id": "675482347",
+      "institution_name": "Fidelity"
+    },
+    "cash_restrictions": [],
+    "created_date": "2026-04-21T12:48:32.831286Z",
+    "funding_date": null,
+    "opening_date": null,
+    "sync_status": {
+      "holdings": {
+        "last_successful_sync": "2026-04-21T12:49:12.831394+00:00",
+        "initial_sync_completed": true
+      },
+      "transactions": {
+        "last_successful_sync": "2026-04-20",
+        "first_transaction_date": "2025-09-11",
+        "initial_sync_completed": true
+      }
+    },
+    "balance": {
+      "total": {
+        "amount": 16752.1,
+        "currency": "USD"
+      }
+    },
+    "raw_data": null,
+    "raw_type": "NP",
+    "status": "open",
+    "is_paper": false
+  },
+  "positions": [
+    {
+      "symbol": {
+        "symbol": {
+          "id": "a673b43c-5996-4194-ab3a-1acea559a355",
+          "symbol": "FDRXX",
+          "description": "Fidelity Phillips Street Trust - Fidelity Government Cash Reserves",
+          "currency": {
+            "code": "USD",
+            "name": "US Dollar",
+            "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+          },
+          "exchange": {
+            "id": "ff4b2ffc-5a0e-4471-9cf5-95c0c30cdedd",
+            "code": "NASDAQ",
+            "mic_code": "XNAS",
+            "name": "NASDAQ",
+            "suffix": null,
+            "timezone": "America/New_York",
+            "start_time": "09:30:00",
+            "close_time": "16:00:00"
+          },
+          "currencies": [],
+          "type": {
+            "id": "a6a7ed04-ec42-40f6-9afe-c8e4210d6b9b",
+            "code": "oef",
+            "description": "Open Ended Fund",
+            "is_supported": false
+          },
+          "raw_symbol": "FDRXX",
+          "logo_url": null,
+          "figi_code": "BBG000BC3WC3",
+          "figi_instrument": {
+            "figi_code": "BBG000BC3WC3",
+            "figi_share_class": "BBG001S65B67"
+          }
+        },
+        "id": "af7c7fc9-7d85-4b8a-8b74-5f67f8476c5e",
+        "description": "",
+        "local_id": "",
+        "security_type": {},
+        "listing_exchange": {},
+        "is_quotable": true,
+        "is_tradable": true
+      },
+      "price": 1.0,
+      "open_pnl": null,
+      "fractional_units": 16752.1,
+      "currency": {
+        "code": "USD",
+        "name": "US Dollar",
+        "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+      },
+      "units": 16752.1,
+      "average_purchase_price": 1.0,
+      "cash_equivalent": true,
+      "tax_lots": []
+    }
+  ],
+  "balances": [
+    {
+      "currency": {
+        "code": "USD",
+        "name": "US Dollar",
+        "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+      },
+      "cash": 16752.1,
+      "buying_power": 16752.1
+    }
+  ],
+  "orders": [
+    {
+      "brokerage_order_id": "906542094-BUY--16751.69-FDRXX",
+      "status": "EXECUTED",
+      "symbol": "af7c7fc9-7d85-4b8a-8b74-5f67f8476c5e",
+      "universal_symbol": {
+        "id": "a673b43c-5996-4194-ab3a-1acea559a355",
+        "symbol": "FDRXX",
+        "description": "Fidelity Phillips Street Trust - Fidelity Government Cash Reserves",
+        "currency": {
+          "code": "USD",
+          "name": "US Dollar",
+          "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+        },
+        "exchange": {
+          "id": "ff4b2ffc-5a0e-4471-9cf5-95c0c30cdedd",
+          "code": "NASDAQ",
+          "mic_code": "XNAS",
+          "name": "NASDAQ",
+          "suffix": null,
+          "timezone": "America/New_York",
+          "start_time": "09:30:00",
+          "close_time": "16:00:00"
+        },
+        "currencies": [],
+        "type": {
+          "id": "a6a7ed04-ec42-40f6-9afe-c8e4210d6b9b",
+          "code": "oef",
+          "description": "Open Ended Fund",
+          "is_supported": false
+        },
+        "raw_symbol": "FDRXX",
+        "logo_url": null,
+        "figi_code": "BBG000BC3WC3",
+        "figi_instrument": {
+          "figi_code": "BBG000BC3WC3",
+          "figi_share_class": "BBG001S65B67"
+        }
+      },
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "BUY",
+      "total_quantity": "16751.690000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "16751.690000000000000000",
+      "execution_price": "1.0000000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-20T04:00:00Z",
+      "time_updated": "2026-04-20T04:00:00Z",
+      "time_executed": "2026-04-20T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    },
+    {
+      "brokerage_order_id": "586219141-SELL-60.28-SMH",
+      "status": "EXECUTED",
+      "symbol": "9f26edb5-f6a4-4fb2-ae59-fc452c705da3",
+      "universal_symbol": {
+        "id": "4bd5a903-1eaa-411c-ad4d-0bb93a6949a2",
+        "symbol": "SMH",
+        "description": "VanEck ETF Trust - VanEck Semiconductor ETF",
+        "currency": {
+          "code": "USD",
+          "name": "US Dollar",
+          "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+        },
+        "exchange": {
+          "id": "ff4b2ffc-5a0e-4471-9cf5-95c0c30cdedd",
+          "code": "NASDAQ",
+          "mic_code": "XNAS",
+          "name": "NASDAQ",
+          "suffix": null,
+          "timezone": "America/New_York",
+          "start_time": "09:30:00",
+          "close_time": "16:00:00"
+        },
+        "currencies": [],
+        "type": {
+          "id": "8057ceb7-e073-4c77-8635-a1c9bc6442cb",
+          "code": "et",
+          "description": "ETF",
+          "is_supported": true
+        },
+        "raw_symbol": "SMH",
+        "logo_url": "https://api.twelvedata.com/logo/vaneck.com",
+        "figi_code": "BBG000BV82B3",
+        "figi_instrument": {
+          "figi_code": "BBG000BV82B3",
+          "figi_share_class": "BBG002D68GN8"
+        }
+      },
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "SELL",
+      "total_quantity": "0.130000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "0.130000000000000000",
+      "execution_price": "463.6600000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-17T04:00:00Z",
+      "time_updated": "2026-04-17T04:00:00Z",
+      "time_executed": "2026-04-17T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    },
+    {
+      "brokerage_order_id": "586219140-SELL-16691.41-SMH",
+      "status": "EXECUTED",
+      "symbol": "9f26edb5-f6a4-4fb2-ae59-fc452c705da3",
+      "universal_symbol": {
+        "id": "4bd5a903-1eaa-411c-ad4d-0bb93a6949a2",
+        "symbol": "SMH",
+        "description": "VanEck ETF Trust - VanEck Semiconductor ETF",
+        "currency": {
+          "code": "USD",
+          "name": "US Dollar",
+          "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+        },
+        "exchange": {
+          "id": "ff4b2ffc-5a0e-4471-9cf5-95c0c30cdedd",
+          "code": "NASDAQ",
+          "mic_code": "XNAS",
+          "name": "NASDAQ",
+          "suffix": null,
+          "timezone": "America/New_York",
+          "start_time": "09:30:00",
+          "close_time": "16:00:00"
+        },
+        "currencies": [],
+        "type": {
+          "id": "8057ceb7-e073-4c77-8635-a1c9bc6442cb",
+          "code": "et",
+          "description": "ETF",
+          "is_supported": true
+        },
+        "raw_symbol": "SMH",
+        "logo_url": "https://api.twelvedata.com/logo/vaneck.com",
+        "figi_code": "BBG000BV82B3",
+        "figi_instrument": {
+          "figi_code": "BBG000BV82B3",
+          "figi_share_class": "BBG002D68GN8"
+        }
+      },
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "SELL",
+      "total_quantity": "36.000000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "36.000000000000000000",
+      "execution_price": "463.6600000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-17T04:00:00Z",
+      "time_updated": "2026-04-17T04:00:00Z",
+      "time_executed": "2026-04-17T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    },
+    {
+      "brokerage_order_id": "539074709-SELL-28.19-FDRXX",
+      "status": "EXECUTED",
+      "symbol": "af7c7fc9-7d85-4b8a-8b74-5f67f8476c5e",
+      "universal_symbol": {
+        "id": "a673b43c-5996-4194-ab3a-1acea559a355",
+        "symbol": "FDRXX",
+        "description": "Fidelity Phillips Street Trust - Fidelity Government Cash Reserves",
+        "currency": {
+          "code": "USD",
+          "name": "US Dollar",
+          "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+        },
+        "exchange": {
+          "id": "ff4b2ffc-5a0e-4471-9cf5-95c0c30cdedd",
+          "code": "NASDAQ",
+          "mic_code": "XNAS",
+          "name": "NASDAQ",
+          "suffix": null,
+          "timezone": "America/New_York",
+          "start_time": "09:30:00",
+          "close_time": "16:00:00"
+        },
+        "currencies": [],
+        "type": {
+          "id": "a6a7ed04-ec42-40f6-9afe-c8e4210d6b9b",
+          "code": "oef",
+          "description": "Open Ended Fund",
+          "is_supported": false
+        },
+        "raw_symbol": "FDRXX",
+        "logo_url": null,
+        "figi_code": "BBG000BC3WC3",
+        "figi_instrument": {
+          "figi_code": "BBG000BC3WC3",
+          "figi_share_class": "BBG001S65B67"
+        }
+      },
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "SELL",
+      "total_quantity": "28.190000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "28.190000000000000000",
+      "execution_price": "1.0000000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-15T04:00:00Z",
+      "time_updated": "2026-04-15T04:00:00Z",
+      "time_executed": "2026-04-15T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    },
+    {
+      "brokerage_order_id": "52809457-BUY--16208.38-SMH",
+      "status": "EXECUTED",
+      "symbol": "9f26edb5-f6a4-4fb2-ae59-fc452c705da3",
+      "universal_symbol": {
+        "id": "4bd5a903-1eaa-411c-ad4d-0bb93a6949a2",
+        "symbol": "SMH",
+        "description": "VanEck ETF Trust - VanEck Semiconductor ETF",
+        "currency": {
+          "code": "USD",
+          "name": "US Dollar",
+          "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+        },
+        "exchange": {
+          "id": "ff4b2ffc-5a0e-4471-9cf5-95c0c30cdedd",
+          "code": "NASDAQ",
+          "mic_code": "XNAS",
+          "name": "NASDAQ",
+          "suffix": null,
+          "timezone": "America/New_York",
+          "start_time": "09:30:00",
+          "close_time": "16:00:00"
+        },
+        "currencies": [],
+        "type": {
+          "id": "8057ceb7-e073-4c77-8635-a1c9bc6442cb",
+          "code": "et",
+          "description": "ETF",
+          "is_supported": true
+        },
+        "raw_symbol": "SMH",
+        "logo_url": "https://api.twelvedata.com/logo/vaneck.com",
+        "figi_code": "BBG000BV82B3",
+        "figi_instrument": {
+          "figi_code": "BBG000BV82B3",
+          "figi_share_class": "BBG002D68GN8"
+        }
+      },
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "BUY",
+      "total_quantity": "36.000000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "36.000000000000000000",
+      "execution_price": "450.2327000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-14T04:00:00Z",
+      "time_updated": "2026-04-14T04:00:00Z",
+      "time_executed": "2026-04-14T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    },
+    {
+      "brokerage_order_id": "52809456-BUY--58.53-SMH",
+      "status": "EXECUTED",
+      "symbol": "9f26edb5-f6a4-4fb2-ae59-fc452c705da3",
+      "universal_symbol": {
+        "id": "4bd5a903-1eaa-411c-ad4d-0bb93a6949a2",
+        "symbol": "SMH",
+        "description": "VanEck ETF Trust - VanEck Semiconductor ETF",
+        "currency": {
+          "code": "USD",
+          "name": "US Dollar",
+          "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+        },
+        "exchange": {
+          "id": "ff4b2ffc-5a0e-4471-9cf5-95c0c30cdedd",
+          "code": "NASDAQ",
+          "mic_code": "XNAS",
+          "name": "NASDAQ",
+          "suffix": null,
+          "timezone": "America/New_York",
+          "start_time": "09:30:00",
+          "close_time": "16:00:00"
+        },
+        "currencies": [],
+        "type": {
+          "id": "8057ceb7-e073-4c77-8635-a1c9bc6442cb",
+          "code": "et",
+          "description": "ETF",
+          "is_supported": true
+        },
+        "raw_symbol": "SMH",
+        "logo_url": "https://api.twelvedata.com/logo/vaneck.com",
+        "figi_code": "BBG000BV82B3",
+        "figi_instrument": {
+          "figi_code": "BBG000BV82B3",
+          "figi_share_class": "BBG002D68GN8"
+        }
+      },
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "BUY",
+      "total_quantity": "0.130000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "0.130000000000000000",
+      "execution_price": "450.2200000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-14T04:00:00Z",
+      "time_updated": "2026-04-14T04:00:00Z",
+      "time_executed": "2026-04-14T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    },
+    {
+      "brokerage_order_id": "52809455-SELL-12.89-BRKB",
+      "status": "EXECUTED",
+      "symbol": "682b18e5-5de3-4d5c-b28a-1bd1cf10aef3",
+      "universal_symbol": {
+        "id": "bf1ae7c6-2a69-424a-95d9-2663db36ec9e",
+        "symbol": "BRKB",
+        "description": "Berkshire Hathaway Inc. - Class B",
+        "currency": {
+          "code": "USD",
+          "name": "US Dollar",
+          "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+        },
+        "exchange": {
+          "id": "ebd63029-461e-4bed-bd4a-d0595f880b52",
+          "code": "NYSE",
+          "mic_code": "XNYS",
+          "name": "New York Stock Exchange",
+          "suffix": null,
+          "timezone": "America/New_York",
+          "start_time": "09:30:00",
+          "close_time": "16:00:00"
+        },
+        "currencies": [],
+        "type": {
+          "id": "515c27d1-8471-4dec-a234-af12184c51d4",
+          "code": "cs",
+          "description": "Common Stock",
+          "is_supported": true
+        },
+        "raw_symbol": "BRKB",
+        "logo_url": null,
+        "figi_code": "BBG000DWG505",
+        "figi_instrument": {
+          "figi_code": "BBG000DWG505",
+          "figi_share_class": "BBG001S90346"
+        }
+      },
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "SELL",
+      "total_quantity": "0.027000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "0.027000000000000000",
+      "execution_price": "477.3000000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-14T04:00:00Z",
+      "time_updated": "2026-04-14T04:00:00Z",
+      "time_executed": "2026-04-14T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    },
+    {
+      "brokerage_order_id": "52809454-SELL-16225.83-BRKB",
+      "status": "EXECUTED",
+      "symbol": "682b18e5-5de3-4d5c-b28a-1bd1cf10aef3",
+      "universal_symbol": {
+        "id": "bf1ae7c6-2a69-424a-95d9-2663db36ec9e",
+        "symbol": "BRKB",
+        "description": "Berkshire Hathaway Inc. - Class B",
+        "currency": {
+          "code": "USD",
+          "name": "US Dollar",
+          "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+        },
+        "exchange": {
+          "id": "ebd63029-461e-4bed-bd4a-d0595f880b52",
+          "code": "NYSE",
+          "mic_code": "XNYS",
+          "name": "New York Stock Exchange",
+          "suffix": null,
+          "timezone": "America/New_York",
+          "start_time": "09:30:00",
+          "close_time": "16:00:00"
+        },
+        "currencies": [],
+        "type": {
+          "id": "515c27d1-8471-4dec-a234-af12184c51d4",
+          "code": "cs",
+          "description": "Common Stock",
+          "is_supported": true
+        },
+        "raw_symbol": "BRKB",
+        "logo_url": null,
+        "figi_code": "BBG000DWG505",
+        "figi_instrument": {
+          "figi_code": "BBG000DWG505",
+          "figi_share_class": "BBG001S90346"
+        }
+      },
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "SELL",
+      "total_quantity": "34.000000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "34.000000000000000000",
+      "execution_price": "477.2404000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-14T04:00:00Z",
+      "time_updated": "2026-04-14T04:00:00Z",
+      "time_executed": "2026-04-14T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    }
+  ],
+  "cache_timestamp": "2026-04-21T12:49:12.775792Z",
+  "cache_expiry": "2026-04-21T14:49:12.775792Z",
+  "cache_expired": false,
+  "option_positions": [],
+  "total_value": {
+    "currency": "USD",
+    "value": 33504.2
+  }
+}

@@ -1,0 +1,646 @@
+{
+  "account": {
+    "id": "78d44a9d-71f9-4f4a-a936-a3199ad80ef5",
+    "brokerage_authorization": "7115ec7f-c48d-45e2-97a7-a3847ad4cb92",
+    "portfolio_group": "19a0c1c8-a7f6-497e-a6b5-f6b29dc13b94",
+    "name": "Health Savings Account(NV",
+    "number": "*****8045",
+    "institution_account_id": "2128742623",
+    "institution_name": "Fidelity",
+    "meta": {
+      "account_id": "2128742623",
+      "institution_name": "Fidelity"
+    },
+    "cash_restrictions": [],
+    "created_date": "2026-04-21T12:48:32.840729Z",
+    "funding_date": null,
+    "opening_date": null,
+    "sync_status": {
+      "holdings": {
+        "last_successful_sync": "2026-04-21T12:49:16.513048+00:00",
+        "initial_sync_completed": true
+      },
+      "transactions": {
+        "last_successful_sync": "2026-04-20",
+        "first_transaction_date": "2024-04-30",
+        "initial_sync_completed": true
+      }
+    },
+    "balance": {
+      "total": {
+        "amount": 14605.55,
+        "currency": "USD"
+      }
+    },
+    "raw_data": null,
+    "raw_type": "HSA",
+    "status": "open",
+    "is_paper": false
+  },
+  "positions": [
+    {
+      "symbol": {
+        "symbol": {
+          "id": "191fd876-6bae-48c1-9f38-d840e11aa237",
+          "symbol": "QMLTQ",
+          "description": "QMLTQ",
+          "currency": {
+            "code": "USD",
+            "name": "US Dollar",
+            "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+          },
+          "exchange": {
+            "id": "8fbfccbd-4aa3-4f49-9dce-552827c12050",
+            "code": "",
+            "mic_code": "",
+            "name": "",
+            "suffix": null,
+            "timezone": "America/New_York",
+            "start_time": "09:30:00",
+            "close_time": "16:00:00"
+          },
+          "currencies": [],
+          "type": {
+            "id": "ab638b40-bf06-48a5-84db-6829b07a5b17",
+            "code": "",
+            "description": "Security type is not defined",
+            "is_supported": false
+          },
+          "raw_symbol": "QMLTQ",
+          "logo_url": null,
+          "figi_code": null,
+          "figi_instrument": null
+        },
+        "id": "191fd876-6bae-48c1-9f38-d840e11aa237",
+        "description": "FDIC INSURED DEPOSIT AT US BANK HSA NOT COVERED BY SIPC",
+        "local_id": "",
+        "security_type": {},
+        "listing_exchange": {},
+        "is_quotable": true,
+        "is_tradable": true
+      },
+      "price": 1.0,
+      "open_pnl": null,
+      "fractional_units": 1.44,
+      "currency": {
+        "code": "USD",
+        "name": "US Dollar",
+        "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+      },
+      "units": 1.44,
+      "average_purchase_price": 1.0,
+      "cash_equivalent": true,
+      "tax_lots": []
+    },
+    {
+      "symbol": {
+        "symbol": {
+          "id": "f951d4fe-4fd5-4c55-adf4-bc9a81b624d5",
+          "symbol": "GRAB",
+          "description": "Grab Holdings Limited - Ordinary Shares - Class A",
+          "currency": {
+            "code": "USD",
+            "name": "US Dollar",
+            "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+          },
+          "exchange": {
+            "id": "ff4b2ffc-5a0e-4471-9cf5-95c0c30cdedd",
+            "code": "NASDAQ",
+            "mic_code": "XNAS",
+            "name": "NASDAQ",
+            "suffix": null,
+            "timezone": "America/New_York",
+            "start_time": "09:30:00",
+            "close_time": "16:00:00"
+          },
+          "currencies": [],
+          "type": {
+            "id": "515c27d1-8471-4dec-a234-af12184c51d4",
+            "code": "cs",
+            "description": "Common Stock",
+            "is_supported": true
+          },
+          "raw_symbol": "GRAB",
+          "logo_url": "https://api.twelvedata.com/logo/grab.com",
+          "figi_code": "BBG011P0H3K1",
+          "figi_instrument": {
+            "figi_code": "BBG011P0H3K1",
+            "figi_share_class": "BBG011768M71"
+          }
+        },
+        "id": "2b59d004-50a5-4df4-aac2-fdfb16f0422f",
+        "description": "",
+        "local_id": "",
+        "security_type": {},
+        "listing_exchange": {},
+        "is_quotable": true,
+        "is_tradable": true
+      },
+      "price": 4.21,
+      "open_pnl": -495.9056,
+      "fractional_units": 3230.596,
+      "currency": {
+        "code": "USD",
+        "name": "US Dollar",
+        "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+      },
+      "units": 3230.596,
+      "average_purchase_price": 4.3635,
+      "cash_equivalent": false,
+      "tax_lots": []
+    },
+    {
+      "symbol": {
+        "symbol": {
+          "id": "c45f304b-846e-4f8c-b985-34278705d90c",
+          "symbol": "FXAIX",
+          "description": "Fidelity Concord Street Trust - Fidelity 500 Index Fund",
+          "currency": {
+            "code": "USD",
+            "name": "US Dollar",
+            "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+          },
+          "exchange": {
+            "id": "ff4b2ffc-5a0e-4471-9cf5-95c0c30cdedd",
+            "code": "NASDAQ",
+            "mic_code": "XNAS",
+            "name": "NASDAQ",
+            "suffix": null,
+            "timezone": "America/New_York",
+            "start_time": "09:30:00",
+            "close_time": "16:00:00"
+          },
+          "currencies": [],
+          "type": {
+            "id": "a6a7ed04-ec42-40f6-9afe-c8e4210d6b9b",
+            "code": "oef",
+            "description": "Open Ended Fund",
+            "is_supported": false
+          },
+          "raw_symbol": "FXAIX",
+          "logo_url": "https://api.twelvedata.com/logo/fidelity.com",
+          "figi_code": "BBG001P8F023",
+          "figi_instrument": {
+            "figi_code": "BBG001P8F023",
+            "figi_share_class": "BBG001TX1Z13"
+          }
+        },
+        "id": "c0950966-737f-4516-a896-1b3a584f9a00",
+        "description": "",
+        "local_id": "",
+        "security_type": {},
+        "listing_exchange": {},
+        "is_quotable": true,
+        "is_tradable": true
+      },
+      "price": 247.06,
+      "open_pnl": 41.6246,
+      "fractional_units": 4.061,
+      "currency": {
+        "code": "USD",
+        "name": "US Dollar",
+        "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+      },
+      "units": 4.061,
+      "average_purchase_price": 236.81,
+      "cash_equivalent": false,
+      "tax_lots": []
+    }
+  ],
+  "balances": [
+    {
+      "currency": {
+        "code": "USD",
+        "name": "US Dollar",
+        "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+      },
+      "cash": 1.44,
+      "buying_power": 1.44
+    }
+  ],
+  "orders": [
+    {
+      "brokerage_order_id": "1898834543-SELL-95.83-QMLTQ",
+      "status": "EXECUTED",
+      "symbol": "191fd876-6bae-48c1-9f38-d840e11aa237",
+      "universal_symbol": null,
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "SELL",
+      "total_quantity": "95.830000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "95.830000000000000000",
+      "execution_price": "1.0000000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-17T04:00:00Z",
+      "time_updated": "2026-04-17T04:00:00Z",
+      "time_executed": "2026-04-17T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    },
+    {
+      "brokerage_order_id": "905275463-BUY--95.83-QMLTQ",
+      "status": "EXECUTED",
+      "symbol": "191fd876-6bae-48c1-9f38-d840e11aa237",
+      "universal_symbol": null,
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "BUY",
+      "total_quantity": "95.830000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "95.830000000000000000",
+      "execution_price": "1.0000000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-16T04:00:00Z",
+      "time_updated": "2026-04-16T04:00:00Z",
+      "time_executed": "2026-04-16T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    },
+    {
+      "brokerage_order_id": "905275464-BUY--95.83-FXAIX",
+      "status": "EXECUTED",
+      "symbol": "c0950966-737f-4516-a896-1b3a584f9a00",
+      "universal_symbol": {
+        "id": "c45f304b-846e-4f8c-b985-34278705d90c",
+        "symbol": "FXAIX",
+        "description": "Fidelity Concord Street Trust - Fidelity 500 Index Fund",
+        "currency": {
+          "code": "USD",
+          "name": "US Dollar",
+          "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+        },
+        "exchange": {
+          "id": "ff4b2ffc-5a0e-4471-9cf5-95c0c30cdedd",
+          "code": "NASDAQ",
+          "mic_code": "XNAS",
+          "name": "NASDAQ",
+          "suffix": null,
+          "timezone": "America/New_York",
+          "start_time": "09:30:00",
+          "close_time": "16:00:00"
+        },
+        "currencies": [],
+        "type": {
+          "id": "a6a7ed04-ec42-40f6-9afe-c8e4210d6b9b",
+          "code": "oef",
+          "description": "Open Ended Fund",
+          "is_supported": false
+        },
+        "raw_symbol": "FXAIX",
+        "logo_url": "https://api.twelvedata.com/logo/fidelity.com",
+        "figi_code": "BBG001P8F023",
+        "figi_instrument": {
+          "figi_code": "BBG001P8F023",
+          "figi_share_class": "BBG001TX1Z13"
+        }
+      },
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "BUY",
+      "total_quantity": "0.392000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "0.392000000000000000",
+      "execution_price": "244.6900000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-16T04:00:00Z",
+      "time_updated": "2026-04-16T04:00:00Z",
+      "time_executed": "2026-04-16T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    },
+    {
+      "brokerage_order_id": "2122625714-BUY--1-QMLTQ",
+      "status": "EXECUTED",
+      "symbol": "191fd876-6bae-48c1-9f38-d840e11aa237",
+      "universal_symbol": null,
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "BUY",
+      "total_quantity": "1.000000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "1.000000000000000000",
+      "execution_price": "1.0000000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-13T04:00:00Z",
+      "time_updated": "2026-04-13T04:00:00Z",
+      "time_executed": "2026-04-13T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    },
+    {
+      "brokerage_order_id": "2071911511-BUY--1.32-NVDA",
+      "status": "EXECUTED",
+      "symbol": "5047c841-b3bc-4a94-84c4-c4d88df4bad1",
+      "universal_symbol": {
+        "id": "f2d10516-9aff-4338-b983-8db42a8bce91",
+        "symbol": "NVDA",
+        "description": "NVIDIA Corp",
+        "currency": {
+          "code": "USD",
+          "name": "US Dollar",
+          "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+        },
+        "exchange": {
+          "id": "ff4b2ffc-5a0e-4471-9cf5-95c0c30cdedd",
+          "code": "NASDAQ",
+          "mic_code": "XNAS",
+          "name": "NASDAQ",
+          "suffix": null,
+          "timezone": "America/New_York",
+          "start_time": "09:30:00",
+          "close_time": "16:00:00"
+        },
+        "currencies": [],
+        "type": {
+          "id": "515c27d1-8471-4dec-a234-af12184c51d4",
+          "code": "cs",
+          "description": "Common Stock",
+          "is_supported": true
+        },
+        "raw_symbol": "NVDA",
+        "logo_url": "https://api.twelvedata.com/logo/nvidia.com",
+        "figi_code": "BBG000BBK0R0",
+        "figi_instrument": {
+          "figi_code": "BBG000BBK0R0",
+          "figi_share_class": "BBG001S5TZJ6"
+        }
+      },
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "BUY",
+      "total_quantity": "0.007000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "0.007000000000000000",
+      "execution_price": "188.3150000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-10T04:00:00Z",
+      "time_updated": "2026-04-10T04:00:00Z",
+      "time_executed": "2026-04-10T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    },
+    {
+      "brokerage_order_id": "2071911510-SELL-1.32-NVDA",
+      "status": "EXECUTED",
+      "symbol": "5047c841-b3bc-4a94-84c4-c4d88df4bad1",
+      "universal_symbol": {
+        "id": "f2d10516-9aff-4338-b983-8db42a8bce91",
+        "symbol": "NVDA",
+        "description": "NVIDIA Corp",
+        "currency": {
+          "code": "USD",
+          "name": "US Dollar",
+          "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+        },
+        "exchange": {
+          "id": "ff4b2ffc-5a0e-4471-9cf5-95c0c30cdedd",
+          "code": "NASDAQ",
+          "mic_code": "XNAS",
+          "name": "NASDAQ",
+          "suffix": null,
+          "timezone": "America/New_York",
+          "start_time": "09:30:00",
+          "close_time": "16:00:00"
+        },
+        "currencies": [],
+        "type": {
+          "id": "515c27d1-8471-4dec-a234-af12184c51d4",
+          "code": "cs",
+          "description": "Common Stock",
+          "is_supported": true
+        },
+        "raw_symbol": "NVDA",
+        "logo_url": "https://api.twelvedata.com/logo/nvidia.com",
+        "figi_code": "BBG000BBK0R0",
+        "figi_instrument": {
+          "figi_code": "BBG000BBK0R0",
+          "figi_share_class": "BBG001S5TZJ6"
+        }
+      },
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "SELL",
+      "total_quantity": "0.007000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "0.007000000000000000",
+      "execution_price": "188.3300000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-10T04:00:00Z",
+      "time_updated": "2026-04-10T04:00:00Z",
+      "time_executed": "2026-04-10T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    },
+    {
+      "brokerage_order_id": "2071911509-SELL-1-GRAB",
+      "status": "EXECUTED",
+      "symbol": "2b59d004-50a5-4df4-aac2-fdfb16f0422f",
+      "universal_symbol": {
+        "id": "f951d4fe-4fd5-4c55-adf4-bc9a81b624d5",
+        "symbol": "GRAB",
+        "description": "Grab Holdings Limited - Ordinary Shares - Class A",
+        "currency": {
+          "code": "USD",
+          "name": "US Dollar",
+          "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+        },
+        "exchange": {
+          "id": "ff4b2ffc-5a0e-4471-9cf5-95c0c30cdedd",
+          "code": "NASDAQ",
+          "mic_code": "XNAS",
+          "name": "NASDAQ",
+          "suffix": null,
+          "timezone": "America/New_York",
+          "start_time": "09:30:00",
+          "close_time": "16:00:00"
+        },
+        "currencies": [],
+        "type": {
+          "id": "515c27d1-8471-4dec-a234-af12184c51d4",
+          "code": "cs",
+          "description": "Common Stock",
+          "is_supported": true
+        },
+        "raw_symbol": "GRAB",
+        "logo_url": "https://api.twelvedata.com/logo/grab.com",
+        "figi_code": "BBG011P0H3K1",
+        "figi_instrument": {
+          "figi_code": "BBG011P0H3K1",
+          "figi_share_class": "BBG011768M71"
+        }
+      },
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "SELL",
+      "total_quantity": "0.270000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "0.270000000000000000",
+      "execution_price": "3.6950000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-10T04:00:00Z",
+      "time_updated": "2026-04-10T04:00:00Z",
+      "time_executed": "2026-04-10T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    },
+    {
+      "brokerage_order_id": "1039391300-SELL-95.83-QMLTQ",
+      "status": "EXECUTED",
+      "symbol": "191fd876-6bae-48c1-9f38-d840e11aa237",
+      "universal_symbol": null,
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "SELL",
+      "total_quantity": "95.830000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "95.830000000000000000",
+      "execution_price": "1.0000000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-02T04:00:00Z",
+      "time_updated": "2026-04-02T04:00:00Z",
+      "time_executed": "2026-04-02T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    },
+    {
+      "brokerage_order_id": "1713063752-BUY--95.83-QMLTQ",
+      "status": "EXECUTED",
+      "symbol": "191fd876-6bae-48c1-9f38-d840e11aa237",
+      "universal_symbol": null,
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "BUY",
+      "total_quantity": "95.830000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "95.830000000000000000",
+      "execution_price": "1.0000000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-01T04:00:00Z",
+      "time_updated": "2026-04-01T04:00:00Z",
+      "time_executed": "2026-04-01T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    },
+    {
+      "brokerage_order_id": "1713063753-BUY--95.83-FXAIX",
+      "status": "EXECUTED",
+      "symbol": "c0950966-737f-4516-a896-1b3a584f9a00",
+      "universal_symbol": {
+        "id": "c45f304b-846e-4f8c-b985-34278705d90c",
+        "symbol": "FXAIX",
+        "description": "Fidelity Concord Street Trust - Fidelity 500 Index Fund",
+        "currency": {
+          "code": "USD",
+          "name": "US Dollar",
+          "id": "57f81c53-bdda-45a7-a51f-032afd1ae41b"
+        },
+        "exchange": {
+          "id": "ff4b2ffc-5a0e-4471-9cf5-95c0c30cdedd",
+          "code": "NASDAQ",
+          "mic_code": "XNAS",
+          "name": "NASDAQ",
+          "suffix": null,
+          "timezone": "America/New_York",
+          "start_time": "09:30:00",
+          "close_time": "16:00:00"
+        },
+        "currencies": [],
+        "type": {
+          "id": "a6a7ed04-ec42-40f6-9afe-c8e4210d6b9b",
+          "code": "oef",
+          "description": "Open Ended Fund",
+          "is_supported": false
+        },
+        "raw_symbol": "FXAIX",
+        "logo_url": "https://api.twelvedata.com/logo/fidelity.com",
+        "figi_code": "BBG001P8F023",
+        "figi_instrument": {
+          "figi_code": "BBG001P8F023",
+          "figi_share_class": "BBG001TX1Z13"
+        }
+      },
+      "quote_universal_symbol": null,
+      "quote_currency": null,
+      "option_symbol": null,
+      "action": "BUY",
+      "total_quantity": "0.418000000000000000",
+      "open_quantity": "0.00",
+      "canceled_quantity": "0.00",
+      "filled_quantity": "0.418000000000000000",
+      "execution_price": "229.0400000000",
+      "limit_price": null,
+      "stop_price": null,
+      "trailing_stop": null,
+      "order_type": "Market",
+      "time_in_force": "GTC",
+      "time_placed": "2026-04-01T04:00:00Z",
+      "time_updated": "2026-04-01T04:00:00Z",
+      "time_executed": "2026-04-01T04:00:00Z",
+      "expiry_date": null,
+      "child_brokerage_order_ids": null
+    }
+  ],
+  "cache_timestamp": "2026-04-21T12:49:16.452531Z",
+  "cache_expiry": "2026-04-21T14:49:16.452531Z",
+  "cache_expired": false,
+  "option_positions": [],
+  "total_value": {
+    "currency": "USD",
+    "value": 14606.99982
+  }
+}

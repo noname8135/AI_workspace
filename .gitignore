@@ -1,0 +1,21 @@
+# Credentials & Secrets
+.env
+.env.local
+*.key
+*.pem
+
+# Logs
+logs/*.log
+
+# OS
+.DS_Store
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Windows
+G:/test_openclaw_access.txt
