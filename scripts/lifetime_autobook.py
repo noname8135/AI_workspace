@@ -227,14 +227,21 @@ if __name__ == "__main__":
                 court_name, start_time, end_time = futures[future]
                 try:
                     result = future.result()
+                    msg = result.get("message", "")
                     if result.get("isValid") and not booked:
                         booked = True
-                        success_msg = f"Booking SUCCESS: {court_name} {start_time}–{end_time}"
-                        logging.info(success_msg)
+                        logging.info(f"Booking SUCCESS: {court_name} {start_time}–{end_time}")
                         logging.info("="*80)
                         send_telegram(f"✅ {court_name} {start_time}–{end_time}")
                         sys.exit(0)
-                    logging.warning(f"  {court_name} {start_time}: {result.get('message')}")
+                    elif "restricted to 1 court" in msg and not booked:
+                        # A previous parallel request already succeeded — this is a false failure
+                        booked = True
+                        logging.info(f"Per-day limit hit — a booking already landed. Treating as SUCCESS.")
+                        logging.info("="*80)
+                        send_telegram(f"✅ Court booked for {DATE} (check app for details)")
+                        sys.exit(0)
+                    logging.warning(f"  {court_name} {start_time}: {msg}")
                 except Exception as e:
                     logging.error(f"  {court_name} {start_time} error: {e}", exc_info=True)
 
