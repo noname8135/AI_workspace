@@ -218,7 +218,7 @@ if __name__ == "__main__":
         logging.info(f"Firing {len(all_combos)} requests simultaneously ({len(TIME_SLOTS)} slots x {len(court_items)} courts)")
 
         booked = False
-        with ThreadPoolExecutor(max_workers=len(all_combos)) as executor:
+        with ThreadPoolExecutor(max_workers=8) as executor:
             futures = {
                 executor.submit(book, s, court_id, start_time, duration, csrf, request_data): (court_name, start_time, end_time)
                 for court_name, court_id, start_time, end_time, duration in all_combos
