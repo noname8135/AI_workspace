@@ -208,35 +208,35 @@ if __name__ == "__main__":
         request_data, csrf = prefetch(s)
         wait_until_noon(s)
 
-        slots = TIME_SLOTS[:]
-        random.shuffle(slots)
-        for start_time, end_time, duration in slots:
-            court_items = list(COURT_IDS.items())
-            random.shuffle(court_items)
-            msg = f"Trying {start_time}–{end_time}: {[n for n, _ in court_items]}"
-            logging.info(msg)
+        # Fire ALL slots x ALL courts simultaneously at noon for maximum speed
+        court_items = list(COURT_IDS.items())
+        all_combos = [
+            (court_name, court_id, start_time, end_time, duration)
+            for start_time, end_time, duration in TIME_SLOTS  # keep priority order, no shuffle
+            for court_name, court_id in court_items
+        ]
+        logging.info(f"Firing {len(all_combos)} requests simultaneously ({len(TIME_SLOTS)} slots x {len(court_items)} courts)")
 
-            with ThreadPoolExecutor(max_workers=4) as executor:
-                futures = {
-                    executor.submit(book, s, court_id, start_time, duration, csrf, request_data): court_name
-                    for court_name, court_id in court_items
-                }
-                for future in as_completed(futures):
-                    court_name = futures[future]
-                    try:
-                        result = future.result()
-                        if result.get("isValid"):
-                            success_msg = f"Booking SUCCESS: {court_name} {start_time}–{end_time}"
-                            logging.info(success_msg)
-                            logging.info("="*80)
-                            telegram_msg = f"✅ {court_name} {start_time}–{end_time}"
-                            send_telegram(telegram_msg)
-                            sys.exit(0)
-                        fail_msg = f"  {court_name} failed: {result.get('message')} — trying next..."
-                        logging.warning(fail_msg)
-                    except Exception as e:
-                        error_msg = f"  {court_name} error: {e}"
-                        logging.error(error_msg, exc_info=True)
+        booked = False
+        with ThreadPoolExecutor(max_workers=len(all_combos)) as executor:
+            futures = {
+                executor.submit(book, s, court_id, start_time, duration, csrf, request_data): (court_name, start_time, end_time)
+                for court_name, court_id, start_time, end_time, duration in all_combos
+            }
+            for future in as_completed(futures):
+                court_name, start_time, end_time = futures[future]
+                try:
+                    result = future.result()
+                    if result.get("isValid") and not booked:
+                        booked = True
+                        success_msg = f"Booking SUCCESS: {court_name} {start_time}–{end_time}"
+                        logging.info(success_msg)
+                        logging.info("="*80)
+                        send_telegram(f"✅ {court_name} {start_time}–{end_time}")
+                        sys.exit(0)
+                    logging.warning(f"  {court_name} {start_time}: {result.get('message')}")
+                except Exception as e:
+                    logging.error(f"  {court_name} {start_time} error: {e}", exc_info=True)
 
         fail_msg = "All slots and courts exhausted. Booking FAILED."
         logging.error(fail_msg)
