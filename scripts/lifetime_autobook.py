@@ -52,14 +52,11 @@ WEEKDAY_SLOTS = [
     ("5:00 PM", "6:30 PM", "90"),
 ]
 WEEKEND_SLOTS = [
-    ("10:00 AM", "11:30 AM", "90"),
     ("4:00 PM", "5:30 PM", "90"),
-    ("10:30 AM", "12:00 PM", "90"),
-    ("11:00 AM", "12:30 PM", "90"),
     ("4:30 PM", "6:00 PM", "90"),
     ("5:00 PM", "6:30 PM", "90"),
-    ("3:00 PM", "4:30 PM", "90"),
-    ("3:30 PM", "5:00 PM", "90"),
+    ("5:30 PM", "7:00 PM", "90"),
+    ("6:00 PM", "7:30 PM", "90"),
 ]
 # Pick slots based on target date's day of week (weekday=0-4, weekend=5-6)
 TIME_SLOTS = WEEKEND_SLOTS if TARGET_DATE.weekday() >= 5 else WEEKDAY_SLOTS
