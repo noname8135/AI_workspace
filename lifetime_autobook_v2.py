@@ -18,11 +18,21 @@ Improvements over v1 (verified by live testing 2026-10-04):
  7. --dry-run flag: runs login + prefetch + availability check without
     booking anything (safe to test any time).
 
-Cron (runs daily, books same weekday next week at noon sharp):
-  59 11 * * * /usr/bin/python3 /path/to/lifetime_autobook_v2.py >> /tmp/lifetime_autobook.log 2>&1
+Race mode (for the daily noon rush — session warmup + precise fire):
+  python3 lifetime_autobook_v2.py --race
+    Warms up early (login + prefetch requestData/CSRF), sends keepalive pings,
+    refreshes the CSRF token 8s before fire time, then fires the booking
+    requests at exactly 11:59:59.900 America/Los_Angeles so they land just
+    after noon when the slots open. Zero setup latency at fire time.
+  --race --dry-run            same timing, but read-only (never books)
+  --race --fire-at=HH:MM:SS   override fire time (for testing)
+
+Daily driver: start --race ~11:40-11:50 from a scheduler (e.g. a daily cron
+at 11:45). If started after fire time it fires immediately instead of waiting.
 """
 
 import requests, sys, time, datetime, re, logging, os, io, base64, html as htmllib
+from zoneinfo import ZoneInfo
 from urllib.parse import unquote
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -76,6 +86,12 @@ USER_ID              = "6710116"
 BASE_URL         = "https://app.courtreserve.com"
 RESERVATIONS_URL = "https://reservations.courtreserve.com"
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:147.0) Gecko/20100101 Firefox/147.0"
+
+# ── Race mode config ─────────────────────────────────────────────────────────
+RACE_TZ = ZoneInfo("America/Los_Angeles")
+FIRE_HOUR, FIRE_MIN, FIRE_SEC, FIRE_MS = 11, 59, 59, 900  # fire at 11:59:59.900 PT
+FINAL_REFRESH_SECS = 8      # refresh CSRF this many seconds before fire
+WARMUP_KEEPALIVE_SECS = 45  # keepalive ping interval during warmup wait
 # ─────────────────────────────────────────────────────────────────────────────
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s",
@@ -149,8 +165,32 @@ def sign_pending_waivers(s):
     return ok
 
 
+def fetch_booking_form(s, request_data):
+    """GET the CreateReservation form; returns raw HTML."""
+    start_time, _, duration = TIME_SLOTS[0]
+    end_dt = (datetime.datetime.strptime(start_time, "%I:%M %p")
+              + datetime.timedelta(minutes=int(duration)))
+    r = s.get(
+        f"{RESERVATIONS_URL}/Online/ReservationsApi/CreateReservation",
+        params={"id": ORG_ID, "uiCulture": "en-US",
+                "start": f"{DATE} {start_time}",
+                "end": f"{DATE} {end_dt.strftime('%-I:%M %p')}",
+                "courtType": "Hard", "courtTypeId": COURT_TYPE_ID,
+                "customSchedulerId": SCHEDULER_ID, "isConsolidated": "True",
+                "instructorId": "", "isMobileLayout": "False",
+                "requestData": request_data}, timeout=45)
+    return r.text
+
+
+def extract_csrf(html):
+    m = re.search(r'<input name="__RequestVerificationToken" type="hidden" '
+                  r'value="([^"]+)"', html)
+    return m.group(1) if m else None
+
+
 def prefetch(s):
-    """Grab requestData + CSRF token, auto-signing waivers if they block."""
+    """Grab requestData + CSRF token, auto-signing waivers if they block.
+    Returns (request_data, csrf); (None, None) if target date already booked."""
     r = s.get(f"{BASE_URL}/Online/Reservations/Bookings/{ORG_ID}",
               params={"sId": SCHEDULER_ID}, timeout=45)
     m = re.search(r'requestData=([A-Za-z0-9%+/=]+)', r.text)
@@ -159,25 +199,10 @@ def prefetch(s):
         sys.exit(1)
     request_data = unquote(m.group(1))
 
-    def fetch_form():
-        start_time, _, duration = TIME_SLOTS[0]
-        end_dt = (datetime.datetime.strptime(start_time, "%I:%M %p")
-                  + datetime.timedelta(minutes=int(duration)))
-        return s.get(
-            f"{RESERVATIONS_URL}/Online/ReservationsApi/CreateReservation",
-            params={"id": ORG_ID, "uiCulture": "en-US",
-                    "start": f"{DATE} {start_time}",
-                    "end": f"{DATE} {end_dt.strftime('%-I:%M %p')}",
-                    "courtType": "Hard", "courtTypeId": COURT_TYPE_ID,
-                    "customSchedulerId": SCHEDULER_ID, "isConsolidated": "True",
-                    "instructorId": "", "isMobileLayout": "False",
-                    "requestData": request_data}, timeout=45)
-
-    r = fetch_form()
-    m = re.search(r'<input name="__RequestVerificationToken" type="hidden" '
-                  r'value="([^"]+)"', r.text)
-    if not m:
-        if "restricted to 1 court" in r.text:
+    html = fetch_booking_form(s, request_data)
+    csrf = extract_csrf(html)
+    if not csrf:
+        if "restricted to 1 court" in html:
             # Target date already has a booking — nothing to do.
             log.info("Per-day court limit already reached for target date — "
                      "a booking exists, nothing to do.")
@@ -185,14 +210,54 @@ def prefetch(s):
         # Possibly blocked by a pending waiver — sign and retry once
         log.warning("No CSRF token — checking for pending waiver...")
         if sign_pending_waivers(s):
-            r = fetch_form()
-            m = re.search(r'<input name="__RequestVerificationToken" type="hidden" '
-                          r'value="([^"]+)"', r.text)
-    if not m:
+            csrf = extract_csrf(fetch_booking_form(s, request_data))
+    if not csrf:
         log.error("Failed to get CSRF token")
         sys.exit(1)
     log.info("Prefetch OK")
-    return request_data, m.group(1)
+    return request_data, csrf
+
+
+def refresh_csrf(s, request_data):
+    """Final CSRF refresh right before firing. Returns the fresh token,
+    None if the target date got booked during warmup, or "KEEP" to fall back
+    to the warmup token when the refresh itself fails."""
+    html = fetch_booking_form(s, request_data)
+    csrf = extract_csrf(html)
+    if csrf:
+        return csrf
+    if "restricted to 1 court" in html:
+        log.info("Target date got booked during warmup — nothing to do.")
+        return None
+    log.warning("Final CSRF refresh failed — keeping warmup token")
+    return "KEEP"
+
+
+def keepalive_until(s, deadline):
+    """Lightweight pings to keep the session/TLS warm until deadline."""
+    while True:
+        now = datetime.datetime.now(RACE_TZ)
+        remaining = (deadline - now).total_seconds()
+        if remaining <= 0:
+            return
+        time.sleep(min(WARMUP_KEEPALIVE_SECS, remaining))
+        try:
+            s.get(f"{BASE_URL}/Online/Portal/Index/{ORG_ID}", timeout=10)
+        except Exception as e:
+            log.warning(f"Keepalive ping failed: {e}")
+
+
+def wait_until_precise(target):
+    """Sleep in chunks, then busy-wait for millisecond-accurate firing."""
+    while True:
+        now = datetime.datetime.now(RACE_TZ)
+        delta = (target - now).total_seconds()
+        if delta <= 0:
+            break
+        if delta > 0.3:
+            time.sleep(min(delta - 0.15, 10))
+    log.info("FIRE at "
+             f"{datetime.datetime.now(RACE_TZ).strftime('%H:%M:%S.%f')[:-3]} PT")
 
 
 def wait_until_noon(s):
@@ -237,10 +302,10 @@ def book(s, court_id, start_time, duration, csrf, request_data):
     return r.json()
 
 
-def check_availability(s):
+def check_availability(s, slots=None):
     """Read-only: how many courts are free per slot (for --dry-run)."""
     date_full = f"{DATE} 12:00:00 AM"
-    for start_time, end_time, duration in TIME_SLOTS:
+    for start_time, end_time, duration in (slots or TIME_SLOTS):
         start_hms = datetime.datetime.strptime(start_time, "%I:%M %p").strftime("%H:%M:%S")
         r = s.get(
             f"{BASE_URL}/Online/AjaxController/GetAvailableCourtsMemberPortal/{ORG_ID}",
@@ -257,26 +322,9 @@ def check_availability(s):
         log.info(f"  {start_time}–{end_time}: {n} courts free")
 
 
-if __name__ == "__main__":
-    dry_run = "--dry-run" in sys.argv
-    log.info(f"Target date: {DATE} ({'weekend' if WEEKEND else 'weekday'} slots)"
-             + (" [DRY RUN]" if dry_run else ""))
-    s = login()
-
-    if dry_run:
-        # Safe anytime: login + availability only, never books.
-        check_availability(s)
-        log.info("Dry run complete — nothing was booked.")
-        sys.exit(0)
-
-    request_data, csrf = prefetch(s)
-    if csrf is None:
-        # Already booked for target date (or blocked) — exit cleanly.
-        sys.exit(0)
-
-    wait_until_noon(s)
-
-    # Slots in strict priority order; all courts in parallel per slot.
+def run_booking(s, request_data, csrf):
+    """Slots in strict priority order; all courts in parallel per slot.
+    Returns True if a booking landed."""
     for start_time, end_time, duration in TIME_SLOTS:
         log.info(f"Trying {start_time}–{end_time}...")
         executor = ThreadPoolExecutor(max_workers=len(COURT_IDS))
@@ -304,12 +352,90 @@ if __name__ == "__main__":
         executor.shutdown(cancel_futures=True)
         if won:
             send_telegram(f"✅ {winner_name} {start_time}–{end_time} ({DATE})")
-            sys.exit(0)
+            return True
         if any("restricted to 1 court" in m for m in messages):
             log.info("Per-day limit hit — a booking already landed.")
             send_telegram(f"✅ Court booked for {DATE} (check app)")
-            sys.exit(0)
+            return True
 
     log.error("All slots exhausted. Booking FAILED.")
     send_telegram(f"❌ Booking failed for {DATE}")
-    sys.exit(1)
+    return False
+
+
+def run_race(dry_run, fire_at_arg):
+    """Warm up early, keep the session hot, fire at exactly 11:59:59.900 PT."""
+    now0 = datetime.datetime.now(RACE_TZ)
+    if fire_at_arg:
+        t = datetime.datetime.strptime(fire_at_arg, "%H:%M:%S").time()
+        fire_at = datetime.datetime.combine(now0.date(), t, tzinfo=RACE_TZ)
+    else:
+        fire_at = datetime.datetime.combine(
+            now0.date(),
+            datetime.time(FIRE_HOUR, FIRE_MIN, FIRE_SEC, FIRE_MS * 1000),
+            tzinfo=RACE_TZ)
+    log.info(f"RACE MODE — target {DATE} "
+             f"({'weekend' if WEEKEND else 'weekday'} slots), "
+             f"fire at {fire_at.strftime('%H:%M:%S.%f')[:-3]} PT"
+             + (" [DRY RUN]" if dry_run else ""))
+
+    s = login()
+    t0 = time.monotonic()
+    request_data, csrf = prefetch(s)
+    if csrf is None:
+        sys.exit(0)  # target date already booked
+    log.info(f"Warmup done in {time.monotonic() - t0:.1f}s — session ready")
+
+    now = datetime.datetime.now(RACE_TZ)
+    if now >= fire_at:
+        log.warning("Started after fire time — firing immediately")
+    else:
+        refresh_at = fire_at - datetime.timedelta(seconds=FINAL_REFRESH_SECS)
+        if now < refresh_at:
+            log.info(f"Keepalive until {refresh_at.strftime('%H:%M:%S')} PT...")
+            keepalive_until(s, refresh_at)
+        new_csrf = refresh_csrf(s, request_data)
+        if new_csrf is None:
+            sys.exit(0)  # got booked during warmup
+        if new_csrf != "KEEP":
+            csrf = new_csrf
+            log.info("CSRF refreshed just before fire")
+        wait_until_precise(fire_at)
+
+    if dry_run:
+        # Read-only verification at the exact fire moment.
+        check_availability(s, slots=TIME_SLOTS[:1])
+        log.info("Dry-run race complete — session valid at fire time, "
+                 "nothing was booked.")
+        sys.exit(0)
+
+    sys.exit(0 if run_booking(s, request_data, csrf) else 1)
+
+
+if __name__ == "__main__":
+    dry_run = "--dry-run" in sys.argv
+    race = "--race" in sys.argv
+    fire_at_arg = next(
+        (a.split("=", 1)[1] for a in sys.argv if a.startswith("--fire-at=")),
+        None)
+
+    if race:
+        run_race(dry_run, fire_at_arg)
+
+    log.info(f"Target date: {DATE} ({'weekend' if WEEKEND else 'weekday'} slots)"
+             + (" [DRY RUN]" if dry_run else ""))
+    s = login()
+
+    if dry_run:
+        # Safe anytime: login + availability only, never books.
+        check_availability(s)
+        log.info("Dry run complete — nothing was booked.")
+        sys.exit(0)
+
+    request_data, csrf = prefetch(s)
+    if csrf is None:
+        # Already booked for target date (or blocked) — exit cleanly.
+        sys.exit(0)
+
+    wait_until_noon(s)
+    sys.exit(0 if run_booking(s, request_data, csrf) else 1)
