@@ -19,3 +19,4 @@ __pycache__/
 
 # Windows
 G:/test_openclaw_access.txt
+*.log
