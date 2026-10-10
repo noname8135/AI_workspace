@@ -8,6 +8,9 @@ book -> cancel -> re-verify-available round trip):
   python3 lifetime_autobook.py --cancel=<reservationId> [--reason="..."]
 Find the reservation id from the app: open the booking, the URL is
 https://app.courtreserve.com/Online/MyProfile/Reservation/13234/<id>
+Or list bookings directly (read-only, never books/cancels):
+  python3 lifetime_autobook.py --list              # today's bookings
+  python3 lifetime_autobook.py --list=YYYY-MM-DD    # bookings on a given date
 
 Improvements over the original version (verified by live testing 2026-10-04):
  1. Login: POST-only, skips the initial GET (verified: saves 1 round-trip).
@@ -392,6 +395,42 @@ def cancel_reservation(s, reservation_id, reason="Cancelled via script"):
     return ok
 
 
+def _parse_ms_date(v):
+    """'/Date(1791123975068)/' -> date in RACE_TZ; None if unparseable."""
+    m = re.search(r'/Date\((\d+)\)/', str(v or ""))
+    if not m:
+        return None
+    return datetime.datetime.fromtimestamp(int(m.group(1)) / 1000, RACE_TZ).date()
+
+
+def list_reservations(s, date=None):
+    """Read-only: list booked reservations for a given date (default: today,
+    America/Los_Angeles). Also the way to recover a reservation id without
+    brute-forcing — GetMyUpcomingReservations returns every upcoming
+    booking's Id directly."""
+    target = date or datetime.datetime.now(RACE_TZ).date()
+    r = s.get(f"{BASE_URL}/Online/MyProfile/GetMyUpcomingReservations/{ORG_ID}",
+              timeout=45)
+    r.raise_for_status()
+    data = r.json().get("Data") or []
+    out = []
+    for res in data:
+        d = _parse_ms_date(res.get("Start"))
+        if d is None:
+            try:
+                d = datetime.datetime.strptime(res.get("DateDisplay", ""),
+                                                "%m/%d/%Y").date()
+            except Exception:
+                continue
+        if d != target:
+            continue
+        court = re.sub(r"<[^>]+>", "", str(res.get("CourtsDisplay") or "")).strip() or "?"
+        out.append({"id": res.get("Id", "?"), "court": court,
+                     "date": (res.get("DateDisplay") or "").strip(),
+                     "time": (res.get("TimeDisplay") or "").strip() or "?"})
+    return out
+
+
 def check_availability(s, slots=None):
     """Read-only: how many courts are free per slot (for --dry-run)."""
     date_full = f"{DATE} 12:00:00 AM"
@@ -597,10 +636,27 @@ if __name__ == "__main__":
     scan_max_arg = next(
         (a.split("=", 1)[1] for a in sys.argv if a.startswith("--scan-max-days=")),
         None)
+    list_flag = any(a == "--list" or a.startswith("--list=") for a in sys.argv)
+    list_date_arg = next(
+        (a.split("=", 1)[1] for a in sys.argv if a.startswith("--list=")),
+        None)
 
     if cancel_arg:
         s = login()
         sys.exit(0 if cancel_reservation(s, cancel_arg, reason_arg) else 1)
+
+    if list_flag:
+        s = login()
+        target = datetime.date.fromisoformat(list_date_arg) if list_date_arg else None
+        rows = list_reservations(s, target)
+        if rows:
+            for row in rows:
+                print(f'BOOKING id={row["id"]} court="{row["court"]}" '
+                      f'date={row["date"]} time="{row["time"]}"')
+        else:
+            shown = target or datetime.datetime.now(RACE_TZ).date()
+            print(f"NO_BOOKINGS_FOR {shown.isoformat()}")
+        sys.exit(0)
 
     if scan:
         s = login()
