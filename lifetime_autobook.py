@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """
-CourtReserve Auto-Booking v2 (optimized)
+CourtReserve Auto-Booking
 Site: https://app.courtreserve.com/Online/Account/LogIn/13234
 
-Improvements over v1 (verified by live testing 2026-10-04):
+Cancel an existing reservation (verified working 2026-10-10 — live
+book -> cancel -> re-verify-available round trip):
+  python3 lifetime_autobook.py --cancel=<reservationId> [--reason="..."]
+Find the reservation id from the app: open the booking, the URL is
+https://app.courtreserve.com/Online/MyProfile/Reservation/13234/<id>
+
+Improvements over the original version (verified by live testing 2026-10-04):
  1. Login: POST-only, skips the initial GET (verified: saves 1 round-trip).
  2. Waiver auto-sign: if the booking form redirects to a pending disclosures/
     waiver page, the script signs it automatically (typed signature) and
@@ -29,6 +35,13 @@ Race mode (for the daily noon rush — session warmup + precise fire):
 
 Daily driver: start --race ~11:40-11:50 from a scheduler (e.g. a daily cron
 at 11:45). If started after fire time it fires immediately instead of waiting.
+
+Target date offset: defaults to today+7 (the real booking window the daily
+competitive run races for — do not change this default). For testing against
+a date that's already inside the booking window (so CreateReservation won't
+reject with "only allowed to reserve up to ..."), override with:
+  --days-ahead=N               e.g. --days-ahead=1 for tomorrow
+  LIFETIME_DAYS_AHEAD=N env var (same effect; flag takes precedence)
 """
 
 import requests, sys, time, datetime, re, logging, os, io, base64, html as htmllib
@@ -44,8 +57,17 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8658174912:AAHsYOaCNcET2UL
 TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID", "-1003889752528")
 TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
 
-# Target date: same weekday next week
-TARGET_DATE = datetime.date.today() + datetime.timedelta(days=7)
+# Target date offset: today+7 is the real booking window for the daily
+# competitive run — keep that as the default. Override only for testing a
+# date already inside the window (--days-ahead=N or LIFETIME_DAYS_AHEAD=N).
+DAYS_AHEAD = int(os.getenv("LIFETIME_DAYS_AHEAD", "7"))
+_days_ahead_arg = next(
+    (a.split("=", 1)[1] for a in sys.argv if a.startswith("--days-ahead=")),
+    None)
+if _days_ahead_arg is not None:
+    DAYS_AHEAD = int(_days_ahead_arg)
+
+TARGET_DATE = datetime.date.today() + datetime.timedelta(days=DAYS_AHEAD)
 DATE        = TARGET_DATE.strftime("%-m/%-d/%Y")
 WEEKEND     = TARGET_DATE.weekday() >= 5
 
@@ -302,6 +324,46 @@ def book(s, court_id, start_time, duration, csrf, request_data):
     return r.json()
 
 
+def cancel_reservation(s, reservation_id, reason="Cancelled via script"):
+    """Cancel an existing reservation by id. Mirrors the app's own cancel
+    modal flow: GET the confirmation form to harvest its hidden fields
+    (reservation Id/Number/Start/End/etc — required, not guessable), then
+    POST the cancellation with a reason (required by this org's config).
+    Returns True on success, False otherwise (logs the server's reason)."""
+    r = s.get(f"{BASE_URL}/Online/MyProfile/CancelReservation/{ORG_ID}",
+              params={"reservationId": str(reservation_id)}, timeout=30,
+              headers={"X-Requested-With": "XMLHttpRequest"})
+    if "not the owner" in r.text:
+        log.error(f"Cancel {reservation_id}: not the owner of this reservation")
+        return False
+    if "was not found" in r.text:
+        log.error(f"Cancel {reservation_id}: reservation not found")
+        return False
+
+    data = {}
+    for m_ in re.finditer(r'<input[^>]*type="hidden"[^>]*>', r.text):
+        tag = m_.group(0)
+        nm = re.search(r'name="([^"]+)"', tag)
+        vl = re.search(r'value="([^"]*)"', tag)
+        if nm:
+            data[nm.group(1)] = htmllib.unescape(vl.group(1)) if vl else ""
+    if "SelectedReservation.Id" not in data:
+        log.error(f"Cancel {reservation_id}: confirmation form missing "
+                  "expected fields — can't safely cancel")
+        return False
+    data["SelectedReservation.CancellationReason"] = reason
+
+    r2 = s.post(f"{BASE_URL}/Online/MyProfile/CancelReservation/{ORG_ID}", data=data,
+                timeout=30, headers={"X-Requested-With": "XMLHttpRequest",
+                "Referer": f"{BASE_URL}/Online/MyProfile/Reservation/{ORG_ID}/{reservation_id}"})
+    try:
+        ok = r2.json().get("isValid", False)
+    except Exception:
+        ok = False
+    log.info(f"Cancel {reservation_id}: {'OK' if ok else 'FAILED'} — {r2.text[:200]}")
+    return ok
+
+
 def check_availability(s, slots=None):
     """Read-only: how many courts are free per slot (for --dry-run)."""
     date_full = f"{DATE} 12:00:00 AM"
@@ -349,7 +411,7 @@ def run_booking(s, request_data, csrf):
                 winner_name = name
                 log.info(f"BOOKING SUCCESS: {name} {start_time}–{end_time}")
         # Cancel anything still queued — we already won this slot (or not)
-        executor.shutdown(cancel_futures=True)
+        executor.shutdown(wait=False)
         if won:
             send_telegram(f"✅ {winner_name} {start_time}–{end_time} ({DATE})")
             return True
@@ -418,6 +480,16 @@ if __name__ == "__main__":
     fire_at_arg = next(
         (a.split("=", 1)[1] for a in sys.argv if a.startswith("--fire-at=")),
         None)
+    cancel_arg = next(
+        (a.split("=", 1)[1] for a in sys.argv if a.startswith("--cancel=")),
+        None)
+    reason_arg = next(
+        (a.split("=", 1)[1] for a in sys.argv if a.startswith("--reason=")),
+        "Cancelled via script")
+
+    if cancel_arg:
+        s = login()
+        sys.exit(0 if cancel_reservation(s, cancel_arg, reason_arg) else 1)
 
     if race:
         run_race(dry_run, fire_at_arg)
