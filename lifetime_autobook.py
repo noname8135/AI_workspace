@@ -36,6 +36,18 @@ Race mode (for the daily noon rush — session warmup + precise fire):
 Daily driver: start --race ~11:40-11:50 from a scheduler (e.g. a daily cron
 at 11:45). If started after fire time it fires immediately instead of waiting.
 
+Scan mode (cancellation watcher, 2-7 days out):
+  python3 lifetime_autobook.py --scan
+    One long-lived process — logs in once, then loops forever polling (cheap
+    read-only checks) for a preferred slot opening up on any date 2-7 days
+    out, auto-booking the first one found per date. Run this as a persistent
+    background process, not re-invoked by cron every cycle (a fresh login
+    every minute is unnecessary request volume / bot-detection risk).
+  --scan-interval=N   seconds between poll cycles (default 60, or
+                       LIFETIME_SCAN_INTERVAL env var)
+  --scan-min-days=N   lower bound, days out (default 2, or LIFETIME_SCAN_MIN_DAYS)
+  --scan-max-days=N   upper bound, days out (default 7, or LIFETIME_SCAN_MAX_DAYS)
+
 Target date offset: defaults to today+7 (the real booking window the daily
 competitive run races for — do not change this default). For testing against
 a date that's already inside the booking window (so CreateReservation won't
@@ -45,6 +57,8 @@ reject with "only allowed to reserve up to ..."), override with:
 """
 
 import requests, sys, time, datetime, re, logging, os, io, base64, html as htmllib
+import smtplib
+from email.mime.text import MIMEText
 from zoneinfo import ZoneInfo
 from urllib.parse import unquote
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -53,9 +67,16 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 EMAIL    = os.getenv("LIFETIME_EMAIL", "shuaichiou@gmail.com")
 PASSWORD = os.getenv("LIFETIME_PASSWORD", "e04xup6xl3g")
 ORG_ID   = os.getenv("LIFETIME_ORG_ID", "13234")
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8658174912:AAHsYOaCNcET2ULNAfBlB6Z2A3snqRg1l4k")
-TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID", "-1003889752528")
-TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+
+# Notifications: email via the internal NVIDIA SMTP relay (smtp.nvidia.com,
+# no auth needed from this network). Telegram was tried first but
+# api.telegram.org is MITM-intercepted/blocked on this network (verified
+# 2026-10-10 — a 24h-validity cert from issuer "NetAlerts Services" instead
+# of Telegram's real cert), so it's not usable from here.
+NOTIFY_EMAIL_FROM = os.getenv("LIFETIME_NOTIFY_FROM", "yenchunc@nvidia.com")
+NOTIFY_EMAIL_TO   = os.getenv("LIFETIME_NOTIFY_TO", "shuaichiou@gmail.com")
+SMTP_HOST         = os.getenv("LIFETIME_SMTP_HOST", "smtp.nvidia.com")
+SMTP_PORT         = int(os.getenv("LIFETIME_SMTP_PORT", "25"))
 
 # Target date offset: today+7 is the real booking window for the daily
 # competitive run — keep that as the default. Override only for testing a
@@ -121,13 +142,20 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s",
 log = logging.getLogger()
 
 
-def send_telegram(message):
+def send_email(subject, body):
+    """Best-effort notification via the internal NVIDIA SMTP relay — no auth,
+    reachable from this network (unlike api.telegram.org, which is
+    MITM-intercepted/blocked here)."""
     try:
-        requests.post(TELEGRAM_API,
-                      data={"chat_id": TELEGRAM_CHANNEL_ID, "text": message},
-                      timeout=10)
+        msg = MIMEText(body)
+        msg["Subject"] = subject
+        msg["From"] = NOTIFY_EMAIL_FROM
+        msg["To"] = NOTIFY_EMAIL_TO
+        s = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15)
+        s.sendmail(NOTIFY_EMAIL_FROM, [NOTIFY_EMAIL_TO], msg.as_string())
+        s.quit()
     except Exception as e:
-        log.warning(f"Telegram failed: {e}")
+        log.warning(f"Email notification failed: {e}")
 
 
 def login():
@@ -384,6 +412,76 @@ def check_availability(s, slots=None):
         log.info(f"  {start_time}–{end_time}: {n} courts free")
 
 
+def scan_slots_available(s):
+    """Lightweight read-only check: True if any slot in the (currently
+    globally-set) TIME_SLOTS/DATE has >=1 free court. No CSRF/session-form
+    overhead — just the same AjaxController call check_availability() uses."""
+    date_full = f"{DATE} 12:00:00 AM"
+    for start_time, end_time, duration in TIME_SLOTS:
+        start_hms = datetime.datetime.strptime(start_time, "%I:%M %p").strftime("%H:%M:%S")
+        try:
+            r = s.get(
+                f"{BASE_URL}/Online/AjaxController/GetAvailableCourtsMemberPortal/{ORG_ID}",
+                params={"Date": date_full, "selectedDate": date_full,
+                        "StartTime": start_hms, "EndTime": end_time,
+                        "CourtTypesString": COURT_TYPE_ID, "timeZone": TIMEZONE,
+                        "customSchedulerId": SCHEDULER_ID, "instructorId": "",
+                        "Duration": duration, "AllowPastReservationsUpToXMinutes": "",
+                        "ResourceId": "", "CourtIdsString": "",
+                        "ReservationQueueSlotId": "", "uiCulture": "en-US"},
+                headers={"X-Requested-With": "XMLHttpRequest"}, timeout=20)
+            data = r.json()
+        except Exception as e:
+            log.warning(f"  scan {DATE} {start_time}: check failed ({e})")
+            continue
+        if isinstance(data, list) and len(data) > 0:
+            return True
+    return False
+
+
+def scan_for_openings(s, interval=60, min_days=2, max_days=7):
+    """Poll every `interval` seconds for a cancellation opening up any
+    preferred slot `min_days`-`max_days` days out, auto-booking the first
+    one found per date. Dates that already have a booking (or that this
+    scanner just booked) are skipped on later cycles. Cheap read-only scans
+    every cycle; a real booking attempt (same parallel-court POST flow as
+    the daily race) only fires once a scan actually finds a free slot —
+    keeps steady-state request volume low."""
+    global DATE, WEEKEND, TIME_SLOTS, TARGET_DATE
+    offsets = list(range(min_days, max_days + 1))
+    done = set()
+    log.info(f"SCAN MODE — every {interval}s, {min_days}-{max_days} days out "
+             f"({len(offsets)} dates)")
+    while True:
+        for offset in offsets:
+            if offset in done:
+                continue
+            target = datetime.date.today() + datetime.timedelta(days=offset)
+            TARGET_DATE = target
+            DATE = target.strftime("%-m/%-d/%Y")
+            WEEKEND = target.weekday() >= 5
+            TIME_SLOTS = WEEKEND_SLOTS if WEEKEND else WEEKDAY_SLOTS
+
+            if not scan_slots_available(s):
+                continue
+            log.info(f"Opening detected for {DATE} — attempting to book")
+            try:
+                request_data, csrf = prefetch(s)
+            except SystemExit:
+                log.warning(f"{DATE}: prefetch failed, will retry next cycle")
+                continue
+            if csrf is None:
+                done.add(offset)  # already booked / per-day limit reached
+                continue
+            if run_booking(s, request_data, csrf):
+                done.add(offset)
+
+        if len(done) == len(offsets):
+            log.info("All target dates booked — scan complete.")
+            return
+        time.sleep(interval)
+
+
 def run_booking(s, request_data, csrf):
     """Slots in strict priority order; all courts in parallel per slot.
     Returns True if a booking landed."""
@@ -413,15 +511,18 @@ def run_booking(s, request_data, csrf):
         # Cancel anything still queued — we already won this slot (or not)
         executor.shutdown(wait=False)
         if won:
-            send_telegram(f"✅ {winner_name} {start_time}–{end_time} ({DATE})")
+            send_email(f"Court booked — {DATE}",
+                       f"Booked {winner_name}, {start_time}–{end_time} on {DATE}.")
             return True
         if any("restricted to 1 court" in m for m in messages):
             log.info("Per-day limit hit — a booking already landed.")
-            send_telegram(f"✅ Court booked for {DATE} (check app)")
+            send_email(f"Court booked — {DATE}",
+                       f"A court is already booked for {DATE} (check the app for details).")
             return True
 
     log.error("All slots exhausted. Booking FAILED.")
-    send_telegram(f"❌ Booking failed for {DATE}")
+    send_email(f"Booking FAILED — {DATE}",
+               f"All preferred slots were tried for {DATE} and none succeeded.")
     return False
 
 
@@ -486,10 +587,29 @@ if __name__ == "__main__":
     reason_arg = next(
         (a.split("=", 1)[1] for a in sys.argv if a.startswith("--reason=")),
         "Cancelled via script")
+    scan = "--scan" in sys.argv
+    scan_interval_arg = next(
+        (a.split("=", 1)[1] for a in sys.argv if a.startswith("--scan-interval=")),
+        None)
+    scan_min_arg = next(
+        (a.split("=", 1)[1] for a in sys.argv if a.startswith("--scan-min-days=")),
+        None)
+    scan_max_arg = next(
+        (a.split("=", 1)[1] for a in sys.argv if a.startswith("--scan-max-days=")),
+        None)
 
     if cancel_arg:
         s = login()
         sys.exit(0 if cancel_reservation(s, cancel_arg, reason_arg) else 1)
+
+    if scan:
+        s = login()
+        scan_for_openings(
+            s,
+            interval=int(scan_interval_arg or os.getenv("LIFETIME_SCAN_INTERVAL", "60")),
+            min_days=int(scan_min_arg or os.getenv("LIFETIME_SCAN_MIN_DAYS", "2")),
+            max_days=int(scan_max_arg or os.getenv("LIFETIME_SCAN_MAX_DAYS", "7")))
+        sys.exit(0)
 
     if race:
         run_race(dry_run, fire_at_arg)
