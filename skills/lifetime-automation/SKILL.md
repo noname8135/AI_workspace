@@ -1,297 +1,109 @@
 # Lifetime Court Booking Automation
 
-Automate tennis court reservations at Lifetime Fitness via CourtReserve.
+Automate tennis court reservations at Lifetime Fitness (Santa Clara, org id
+`13234`) via CourtReserve. One script: `lifetime_autobook.py`.
 
-## Overview
+> Superseded a prior 6-script / 3-script layout (`scripts/`,
+> `lifetime_cancel.py`, `lifetime_check_today.py`, `lifetime_check_target.py`)
+> on 2026-10-11 — all functionality consolidated into one file as flags, the
+> duplicates deleted. See `CLAUDE.md` at the repo root for full architecture
+> notes, environment gotchas, and operational preferences; this file is the
+> quick-reference for day-to-day use.
 
-Three automated scripts manage your court bookings:
-1. **Auto-Book** — Books court for next week, same weekday, at noon sharp
-2. **Daily Reminder** — Texts you at 9 AM if court is booked (silent if not)
-3. **Cancel** — Cancels reservations on demand with one command
+## Environment
 
-All scripts send notifications to a Telegram channel (`@cronjobChannel`).
-
-## Setup
-
-### Prerequisites
-- OpenClaw environment
-- Telegram bot token + channel ID
-- Lifetime Fitness account (username/password)
-- Organization ID (usually from URL: `app.courtreserve.com/.../13234`)
-
-### Credentials
-
-Edit scripts to set:
-```python
-EMAIL    = "your-email@example.com"
-PASSWORD = "your-password"
-ORG_ID   = "13234"
-```
-
-Edit Telegram config:
-```python
-TELEGRAM_BOT_TOKEN = "your-bot-token"
-TELEGRAM_CHANNEL_ID = "-1003889752528"
-```
-
-## Scripts
-
-### 1. Auto-Booking (`lifetime_autobook.py`)
-
-**What it does:**
-- Logs in to Lifetime
-- Waits until exactly noon
-- Books court for the same weekday next week
-- Tries time slots in order (8 PM preferred, then 7 PM, etc.)
-- Tries courts in random order (spreads load)
-- Sends result to Telegram
-
-**Run time:** 11:59 AM daily (cron)
-
-**How it books:**
-1. Login via POST to `/Online/Account/LogIn/{ORG_ID}`
-2. Prefetch auth tokens (requestData + CSRF)
-3. Wait until noon
-4. Parallel POST to `/Online/ReservationsApi/CreateReservation`
-5. Try each time slot/court combo until success
-
-**Result:**
-- ✅ `✅ Court 1 5:00 PM–6:30 PM`
-- ❌ `❌ Booking failed - all slots full`
-
-**Logs:** `/home/noname8135/.openclaw/workspace/logs/lifetime_autobook.log`
-
----
-
-### 2. Daily Checker (`lifetime_checker.py`)
-
-**What it does:**
-- Logs in to Lifetime
-- Checks if you have a court booked TODAY
-- Only sends message if court is booked (no noise)
-- Reads from your member portal
-
-**Run time:** 9:00 AM daily (cron)
-
-**Result:**
-- 📌 `📌 Court booked today: Court 1, 5:00 PM–6:30 PM` (if booked)
-- (silence) if not booked
-
-**Logs:** `/home/noname8135/.openclaw/workspace/logs/lifetime_checker.log`
-
----
-
-### 3. Cancellation (`lifetime_cancel.py`)
-
-**What it does:**
-- Logs in to Lifetime
-- Fetches reservation details via GET
-- Submits cancellation form via POST
-- Fills in reason: "Not needed anymore"
-- Sends confirmation to Telegram
-
-**Run manually when needed:**
+Run everything with the zoneinfo shim on the path (Python 3.8 container, no
+stdlib `zoneinfo`):
 ```bash
-python3 /home/noname8135/.openclaw/workspace/scripts/lifetime_cancel.py <reservation_id>
+cd /home/yenchunc/AI_workspace
+PYTHONPATH=/home/yenchunc/.shim python3 lifetime_autobook.py <flags>
 ```
 
-**How to get reservation ID:**
-1. Go to Lifetime bookings
-2. Click "Cancel" on a reservation
-3. Copy the ID from the URL: `...?reservationId=52458474`
-4. Use that ID in the command
+Credentials/config are env-var overridable (see `lifetime_autobook.py`'s
+module docstring and config section for the full list) — defaults are
+hardcoded for this account, so usually no env vars are needed.
 
-**Flow:**
-1. GET `/Online/MyProfile/CancelReservation/{ORG_ID}?reservationId={id}`
-2. Extract all form fields (auto-populated)
-3. Add reason: `SelectedReservation.CancellationReason=Not needed anymore`
-4. POST to `/Online/MyProfile/CancelReservation/{ORG_ID}`
-5. Returns `{"isValid":true}` on success
+## Modes
 
-**Result:**
-- ✅ `✅ Cancelled reservation 52458474`
-- ❌ `❌ Failed to cancel reservation 52458474`
+### `--race` — daily competitive booking (production)
 
-**Logs:** `/home/noname8135/.openclaw/workspace/logs/lifetime_cancel.log`
+Books `today+7` (the club's actual booking-window edge), firing at exactly
+11:59:59.900 America/Los_Angeles so the request lands the instant the
+window opens. Warms up early (login + prefetch), keepalive-pings, refreshes
+CSRF 8s before fire.
 
----
+Deployed via crontab: `40 18 * * *` (fixed UTC, **not** `CRON_TZ` — see
+gotcha below). 18:40 UTC covers both 11:40 AM PDT and 10:40 AM PST, so it
+always starts well before noon PT regardless of DST; the script's own
+`ZoneInfo`-based wait handles the DST-correct fire time internally.
 
-## Cron Setup
+### `--scan` — cancellation watcher, 2-7 days out
 
-### View current jobs
+One **long-lived background process** (not cron-spawned per cycle) that
+logs in once, then polls every `--scan-interval` seconds (default 60) for
+a preferred slot opening up on any date `--scan-min-days`..`--scan-max-days`
+out (default 2-7). Cheap read-only checks every cycle; a real booking
+attempt only fires when a scan finds an actual opening.
+
+Run via `nohup ... &`; a `@reboot` cron entry relaunches it if the
+container restarts. **Restart manually after any code change** — it holds
+the old module in memory:
 ```bash
-openclaw cron list
+pkill -f "python3 lifetime_autobook.py --scan"
+cd /home/yenchunc/AI_workspace && PYTHONPATH=/home/yenchunc/.shim \
+  nohup python3 lifetime_autobook.py --scan >> scan.log 2>&1 < /dev/null &
+disown
 ```
 
-### Add jobs (if not already set up)
-```bash
-# Auto-booking at 11:59 AM daily
-openclaw cron add --name "lifetime-booking" --cron "59 11 * * *" \
-  --message "python /home/noname8135/.openclaw/workspace/scripts/lifetime_autobook.py" \
-  --agent main
+### `--cancel=<id> [--reason="..."]`
 
-# Daily reminder at 9 AM
-openclaw cron add --name "lifetime-daily-checker" --cron "0 9 * * *" \
-  --message "python /home/noname8135/.openclaw/workspace/scripts/lifetime_checker.py" \
-  --agent main
-```
+Cancels a reservation by id. Get the id from `--list` (below) rather than
+digging through the app's URLs.
 
-## Telegram Notifications
+### `--list[=YYYY-MM-DD]`
 
-### Channel Setup
-- Channel: `@cronjobChannel`
-- Bot: `@ShuaiChiouCronjobBot`
-- Channel ID: `-1003889752528`
+Read-only: lists your bookings for a date (default today). Never
+books/cancels. This is also the reliable way to find a reservation's id —
+no need to brute-force it.
 
-### Message Format
-- **Auto-booking success:** `✅ Court 1 5:00 PM–6:30 PM`
-- **Auto-booking failure:** `❌ Booking failed - all slots full`
-- **Daily reminder (booked):** `📌 Court booked today: Court 1, 5:00 PM–6:30 PM`
-- **Cancellation success:** `✅ Cancelled reservation 52458474`
+### `--dry-run` / `--days-ahead=N`
 
-## API Endpoints Used
+`--dry-run` does login + availability check only, safe to run anytime.
+`--days-ahead=N` overrides the target date for testing against a date
+already inside the booking window — **never** change the `today+7` default
+itself; that's the real competitive window the daily `--race` run needs.
 
-### Login
-```
-POST /Online/Account/LogIn/{ORG_ID}
-  Body: UserNameOrEmail, Password
-```
+## Known gotchas (this container, `build-yenchunc-focal-20261005` on gp-014)
 
-### Booking (Prefetch)
-```
-GET /Online/Reservations/Bookings/{ORG_ID}?sId=16995
-  → Extract: requestData (auth token), __RequestVerificationToken (CSRF)
-```
+- **`CRON_TZ` is silently broken** in this container's cron
+  (`3.0pl1-136ubuntu1`) — confirmed empirically 2026-10-10 (two cron entries
+  targeting the identical real-world instant, one plain-UTC one via
+  `CRON_TZ`; only the UTC one fired). Don't use it.
+- **Telegram is network-blocked** — `api.telegram.org` is MITM-intercepted
+  by a content filter on this network (`issuer=O=NetAlerts`). Notifications
+  go out via email through the internal `smtp.nvidia.com:25` relay instead
+  (no auth needed).
+- Python 3.8 needs the `zoneinfo` shim (`PYTHONPATH=~/.shim`, backed by
+  `backports.zoneinfo`) and `ThreadPoolExecutor.shutdown(wait=False)` (not
+  `cancel_futures=True`, which is 3.9+ only).
 
-### Booking (Reserve)
-```
-POST /Online/ReservationsApi/CreateReservation/{ORG_ID}
-  Body: Date, StartTime, Duration, CourtId, MemberId, CSRF token, etc.
-  Response: {"isValid": true/false, "message": "..."}
-```
+## CourtReserve API notes
 
-### Check Reservations
-```
-GET /Online/Portal/Index/{ORG_ID}
-  → Parse HTML/JS for reservation details
-```
-
-### Cancel (Get Form)
-```
-GET /Online/MyProfile/CancelReservation/{ORG_ID}?reservationId={id}
-  → Extract form fields (auto-populated from DB)
-```
-
-### Cancel (Submit)
-```
-POST /Online/MyProfile/CancelReservation/{ORG_ID}
-  Body: SelectedReservation.*, CancellationReason, etc.
-  Response: {"isValid": true}
-```
-
-## Troubleshooting
-
-### Booking failed: "All slots exhausted"
-- All preferred time slots are full
-- Check Lifetime portal for available times
-- Adjust `TIME_SLOTS` in script if needed
-
-### Booking didn't run
-- Check logs: `/home/noname8135/.openclaw/workspace/logs/lifetime_autobook.log`
-- Verify cron is active: `openclaw cron list`
-- Check login credentials (case-sensitive)
-
-### Checker not sending messages
-- It's designed to be silent if no court is booked (feature, not bug)
-- Check logs to confirm it ran: `cat lifetime_checker.log`
-
-### Cancel failed: "No reservation found"
-- Wrong reservation ID
-- Reservation already cancelled
-- Network error — check logs
-
-### Telegram notifications not arriving
-- Verify bot is admin in channel
-- Check bot token is correct
-- Verify channel ID is correct
-
-## Time Slots & Courts
-
-### Preferred Times (in order)
-1. 8:00 PM – 9:30 PM (90 min)
-2. 7:00 PM – 8:30 PM (90 min)
-3. 6:00 PM – 7:30 PM (90 min)
-4. 5:30 PM – 7:00 PM (90 min)
-5. 5:00 PM – 6:30 PM (90 min)
-
-### Courts
-- Court 1, 2, 3, 4, 6, 7, 8 (Court 5 skipped)
-
-### Booking Logic
-- Books 7 days ahead (same weekday next week)
-- Tries courts in random order
-- Parallel attempts (4 workers)
-- Exits on first success
-
-## Configuration
-
-### File Structure
-```
-~/.openclaw/workspace/
-├── scripts/
-│   ├── lifetime_autobook.py
-│   ├── lifetime_checker.py
-│   └── lifetime_cancel.py
-├── logs/
-│   ├── lifetime_autobook.log
-│   ├── lifetime_checker.log
-│   └── lifetime_cancel.log
-└── CRONTASKS.md
-```
-
-### Environment Variables (optional)
-Can hardcode in scripts or use env vars:
-```bash
-export LIFETIME_EMAIL="your-email@example.com"
-export LIFETIME_PASSWORD="your-password"
-export LIFETIME_ORG_ID="13234"
-export TELEGRAM_BOT_TOKEN="..."
-export TELEGRAM_CHANNEL_ID="..."
-```
-
-## Testing
-
-### Test auto-booking manually
-```bash
-python3 /home/noname8135/.openclaw/workspace/scripts/lifetime_autobook.py
-```
-(Will wait until noon, then book)
-
-### Test checker
-```bash
-python3 /home/noname8135/.openclaw/workspace/scripts/lifetime_checker.py
-```
-
-### Test cancellation
-```bash
-python3 /home/noname8135/.openclaw/workspace/scripts/lifetime_cancel.py 52458474
-```
-(Replace with real reservation ID)
-
-## Notes
-
-- **Why 11:59 AM?** CourtReserve opens bookings at exactly noon. Script waits until then, then fires immediately.
-- **Why 7 days?** You can only book a week in advance at Lifetime.
-- **Why silent checker?** Reduces notification noise. Only alerts when you have something to do (cancel).
-- **Why manual cancel?** CourtReserve's JS-heavy portal makes automated detection hard. One-command manual cancel is simpler & safer.
+- `app.courtreserve.com` — session-cookie auth (login, availability,
+  cancel, `GetMyUpcomingReservations`).
+- `reservations.courtreserve.com` — the actual `CreateReservation` POST,
+  authenticated via a signed `requestData` token scraped from the booking
+  page HTML, not cookies.
+- `api4.courtreserve.com` (React "My Bookings" SPA) — dead end, auth isn't
+  derivable from the main session cookies.
+- Reservation ids are a sparse, platform-wide counter, not per-org/sequential.
+- Club policy: 1 court per member per day; booking window opens exactly 7
+  days out "to midnight".
 
 ## References
 
-- Lifetime Fitness: https://www.lifetimeactivities.com/
 - CourtReserve: https://app.courtreserve.com
-- Telegram Bot API: https://core.telegram.org/bots/api
+- Lifetime Fitness: https://www.lifetimeactivities.com/
 
----
-
-**Last tested:** April 20, 2026
-**Status:** ✅ All three scripts working
+**Last verified:** 2026-10-11 (live book → cancel round trip, `--scan` live
+in production, email notifications confirmed delivered).
