@@ -190,6 +190,45 @@ def send_email(subject, body):
         log.warning(f"Email notification failed: {e}")
 
 
+# Cloudflare rate-limit/block signatures seen on reservations.courtreserve.com
+# (verified 2026-10-10/11: HTTP 429 + "error 1015" / "temporarily banned").
+CLOUDFLARE_BLOCK_MARKERS = ("error 1015", "you are being rate limited",
+                             "temporarily banned")
+
+
+class CloudflareBlocked(Exception):
+    pass
+
+
+def _check_not_blocked(r):
+    if r.status_code == 429:
+        raise CloudflareBlocked(f"HTTP 429 from {r.url}")
+    text = (r.text or "")[:2000].lower()
+    if any(m in text for m in CLOUDFLARE_BLOCK_MARKERS):
+        raise CloudflareBlocked(f"block page from {r.url}")
+
+
+def self_disable_scan(reason):
+    """Cloudflare blocked us — stop hammering it rather than retrying every
+    cycle and extending the ban. Removes this scanner's @reboot crontab
+    entry (best effort) and alerts, then exits."""
+    log.error(f"BLOCKED by Cloudflare: {reason} — disabling scan and exiting.")
+    send_email("lifetime_autobook: SCAN DISABLED (Cloudflare block)",
+               f"Scan mode hit a Cloudflare block ({reason}) and disabled "
+               "itself (removed its @reboot crontab entry) to avoid "
+               "extending the ban. Re-enable manually once the ban clears.")
+    try:
+        import subprocess
+        cur = subprocess.run(["crontab", "-l"], capture_output=True,
+                              text=True, timeout=10).stdout
+        new = "\n".join(line for line in cur.splitlines() if "--scan" not in line)
+        subprocess.run(["crontab", "-"], input=new, text=True, timeout=10)
+        log.info("Removed --scan crontab entry.")
+    except Exception as e:
+        log.warning(f"Could not remove crontab entry: {e}")
+    sys.exit(1)
+
+
 def login():
     """POST-only login (the initial GET is unnecessary — verified)."""
     s = requests.Session()
@@ -261,6 +300,7 @@ def fetch_booking_form(s, request_data):
                 "customSchedulerId": SCHEDULER_ID, "isConsolidated": "True",
                 "instructorId": "", "isMobileLayout": "False",
                 "requestData": request_data}, timeout=45)
+    _check_not_blocked(r)
     return r.text
 
 
@@ -487,17 +527,18 @@ def scan_slots_available(s):
     date_full = f"{DATE} 12:00:00 AM"
     for start_time, end_time, duration in TIME_SLOTS:
         start_hms = datetime.datetime.strptime(start_time, "%I:%M %p").strftime("%H:%M:%S")
+        r = s.get(
+            f"{BASE_URL}/Online/AjaxController/GetAvailableCourtsMemberPortal/{ORG_ID}",
+            params={"Date": date_full, "selectedDate": date_full,
+                    "StartTime": start_hms, "EndTime": end_time,
+                    "CourtTypesString": COURT_TYPE_ID, "timeZone": TIMEZONE,
+                    "customSchedulerId": SCHEDULER_ID, "instructorId": "",
+                    "Duration": duration, "AllowPastReservationsUpToXMinutes": "",
+                    "ResourceId": "", "CourtIdsString": "",
+                    "ReservationQueueSlotId": "", "uiCulture": "en-US"},
+            headers={"X-Requested-With": "XMLHttpRequest"}, timeout=20)
+        _check_not_blocked(r)
         try:
-            r = s.get(
-                f"{BASE_URL}/Online/AjaxController/GetAvailableCourtsMemberPortal/{ORG_ID}",
-                params={"Date": date_full, "selectedDate": date_full,
-                        "StartTime": start_hms, "EndTime": end_time,
-                        "CourtTypesString": COURT_TYPE_ID, "timeZone": TIMEZONE,
-                        "customSchedulerId": SCHEDULER_ID, "instructorId": "",
-                        "Duration": duration, "AllowPastReservationsUpToXMinutes": "",
-                        "ResourceId": "", "CourtIdsString": "",
-                        "ReservationQueueSlotId": "", "uiCulture": "en-US"},
-                headers={"X-Requested-With": "XMLHttpRequest"}, timeout=20)
             data = r.json()
         except Exception as e:
             log.warning(f"  scan {DATE} {start_time}: check failed ({e})")
@@ -514,7 +555,8 @@ def scan_for_openings(s, interval=1200, min_days=2, max_days=7):
     scanner just booked) are skipped on later cycles. Cheap read-only scans
     every cycle; a real booking attempt (same parallel-court POST flow as
     the daily race) only fires once a scan actually finds a free slot —
-    keeps steady-state request volume low."""
+    keeps steady-state request volume low. If Cloudflare blocks us (429 /
+    error 1015), self-disables rather than retrying into a longer ban."""
     global DATE, WEEKEND, TIME_SLOTS, TARGET_DATE
     offsets = list(range(min_days, max_days + 1))
     done = set()
@@ -530,11 +572,13 @@ def scan_for_openings(s, interval=1200, min_days=2, max_days=7):
             WEEKEND = target.weekday() >= 5
             TIME_SLOTS = WEEKEND_SLOTS if WEEKEND else WEEKDAY_SLOTS
 
-            if not scan_slots_available(s):
-                continue
-            log.info(f"Opening detected for {DATE} — attempting to book")
             try:
+                if not scan_slots_available(s):
+                    continue
+                log.info(f"Opening detected for {DATE} — attempting to book")
                 request_data, csrf = prefetch(s)
+            except CloudflareBlocked as e:
+                self_disable_scan(str(e))
             except SystemExit:
                 log.warning(f"{DATE}: prefetch failed, will retry next cycle")
                 continue
