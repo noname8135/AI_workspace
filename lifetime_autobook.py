@@ -57,6 +57,13 @@ Scan mode (cancellation watcher, 2-7 days out):
   --scan-min-days=N   lower bound, days out (default 2, or LIFETIME_SCAN_MIN_DAYS)
   --scan-max-days=N   upper bound, days out (default 7, or LIFETIME_SCAN_MAX_DAYS)
 
+Fallback location (Buchser MS Tennis, customSchedulerId=16996): if every
+Lifetime slot is exhausted, --race and the default (non-scan) booking flow
+automatically try Buchser next — only the 5:00-6:00 PM slot (60 min). Same
+org/member (MemberId/MembershipId/ReservationTypeId identical, verified
+2026-10-11), only the scheduler id and court roster differ. Not used by
+--scan (keeps its request volume down — see the Cloudflare note below).
+
 Target date offset: defaults to today+7 (the real booking window the daily
 competitive run races for — do not change this default). For testing against
 a date that's already inside the booking window (so CreateReservation won't
@@ -134,6 +141,22 @@ RESERVATION_TYPE_ID  = "69711"
 MEMBER_ID            = "6710116"
 MEMBERSHIP_ID        = "141172"
 USER_ID              = "6710116"
+
+# Fallback location: Buchser MS Tennis (same org/member — MemberId,
+# MembershipId, ReservationTypeId are all identical to the Lifetime
+# scheduler, verified 2026-10-11 — only customSchedulerId and the court
+# roster differ). Tried only when every Lifetime slot is exhausted. Only
+# the 5:00-6:00 PM slot (60 min, not Lifetime's 90) is wanted here.
+BUCHSER_SCHEDULER_ID = "16996"
+BUCHSER_COURT_IDS = {
+    "Buchser MS 1": "52116",
+    "Buchser MS 2": "52122",
+    "Buchser MS 3": "52123",
+    "Buchser MS 4": "52124",
+    "Buchser MS 5": "52125",
+    "Buchser MS 6": "52108",
+}
+BUCHSER_TIME_SLOTS = [("5:00 PM", "6:00 PM", "60")]
 
 BASE_URL         = "https://app.courtreserve.com"
 RESERVATIONS_URL = "https://reservations.courtreserve.com"
@@ -571,6 +594,37 @@ def run_booking(s, request_data, csrf):
     return False
 
 
+def try_buchser_fallback(s):
+    """Fallback when every Lifetime slot is exhausted: try Buchser MS
+    Tennis (customSchedulerId=16996) instead — same org/member (MemberId,
+    MembershipId, ReservationTypeId all identical, verified 2026-10-11),
+    only the 5:00-6:00 PM slot. Temporarily swaps the global
+    scheduler/court/slot config (each scheduler needs its own requestData/
+    CSRF from a fresh prefetch), restores it afterward either way."""
+    global SCHEDULER_ID, COURT_IDS, TIME_SLOTS
+    orig = (SCHEDULER_ID, COURT_IDS, TIME_SLOTS)
+    SCHEDULER_ID, COURT_IDS, TIME_SLOTS = (
+        BUCHSER_SCHEDULER_ID, BUCHSER_COURT_IDS, BUCHSER_TIME_SLOTS)
+    try:
+        log.info("Lifetime exhausted — trying Buchser MS Tennis fallback "
+                 "(5:00-6:00 PM)...")
+        request_data, csrf = prefetch(s)
+        if csrf is None:
+            return False
+        return run_booking(s, request_data, csrf)
+    finally:
+        SCHEDULER_ID, COURT_IDS, TIME_SLOTS = orig
+
+
+def book_with_fallback(s, request_data, csrf):
+    """Try the primary Lifetime booking; if every slot there is full, fall
+    back to Buchser MS Tennis (5:00-6:00 PM only). Returns True if either
+    succeeded."""
+    if run_booking(s, request_data, csrf):
+        return True
+    return try_buchser_fallback(s)
+
+
 def run_race(dry_run, fire_at_arg):
     """Warm up early, keep the session hot, fire at exactly 11:59:59.900 PT."""
     now0 = datetime.datetime.now(RACE_TZ)
@@ -617,7 +671,7 @@ def run_race(dry_run, fire_at_arg):
                  "nothing was booked.")
         sys.exit(0)
 
-    sys.exit(0 if run_booking(s, request_data, csrf) else 1)
+    sys.exit(0 if book_with_fallback(s, request_data, csrf) else 1)
 
 
 if __name__ == "__main__":
@@ -692,4 +746,4 @@ if __name__ == "__main__":
         sys.exit(0)
 
     wait_until_noon(s)
-    sys.exit(0 if run_booking(s, request_data, csrf) else 1)
+    sys.exit(0 if book_with_fallback(s, request_data, csrf) else 1)
