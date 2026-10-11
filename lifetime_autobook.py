@@ -46,8 +46,14 @@ Scan mode (cancellation watcher, 2-7 days out):
     out, auto-booking the first one found per date. Run this as a persistent
     background process, not re-invoked by cron every cycle (a fresh login
     every minute is unnecessary request volume / bot-detection risk).
-  --scan-interval=N   seconds between poll cycles (default 60, or
-                       LIFETIME_SCAN_INTERVAL env var)
+  --scan-interval=N   seconds between poll cycles (default 1200 = 20min, or
+                       LIFETIME_SCAN_INTERVAL env var). Was 60s originally;
+                       raised to 1200s after a 1-minute cadence tripped
+                       Cloudflare's rate limiting (HTTP 429 / error 1015)
+                       on reservations.courtreserve.com 2026-10-11 — that
+                       subdomain is shared with the daily --race booking,
+                       so an aggressive scan interval risks blocking the
+                       real competitive run too. Don't lower this casually.
   --scan-min-days=N   lower bound, days out (default 2, or LIFETIME_SCAN_MIN_DAYS)
   --scan-max-days=N   upper bound, days out (default 7, or LIFETIME_SCAN_MAX_DAYS)
 
@@ -478,7 +484,7 @@ def scan_slots_available(s):
     return False
 
 
-def scan_for_openings(s, interval=60, min_days=2, max_days=7):
+def scan_for_openings(s, interval=1200, min_days=2, max_days=7):
     """Poll every `interval` seconds for a cancellation opening up any
     preferred slot `min_days`-`max_days` days out, auto-booking the first
     one found per date. Dates that already have a booking (or that this
@@ -662,7 +668,7 @@ if __name__ == "__main__":
         s = login()
         scan_for_openings(
             s,
-            interval=int(scan_interval_arg or os.getenv("LIFETIME_SCAN_INTERVAL", "60")),
+            interval=int(scan_interval_arg or os.getenv("LIFETIME_SCAN_INTERVAL", "1200")),
             min_days=int(scan_min_arg or os.getenv("LIFETIME_SCAN_MIN_DAYS", "2")),
             max_days=int(scan_max_arg or os.getenv("LIFETIME_SCAN_MAX_DAYS", "7")))
         sys.exit(0)
