@@ -73,8 +73,6 @@ reject with "only allowed to reserve up to ..."), override with:
 """
 
 import requests, sys, time, datetime, re, logging, os, io, base64, html as htmllib
-import smtplib
-from email.mime.text import MIMEText
 from zoneinfo import ZoneInfo
 from urllib.parse import unquote
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -84,15 +82,9 @@ EMAIL    = os.getenv("LIFETIME_EMAIL", "shuaichiou@gmail.com")
 PASSWORD = os.getenv("LIFETIME_PASSWORD", "e04xup6xl3g")
 ORG_ID   = os.getenv("LIFETIME_ORG_ID", "13234")
 
-# Notifications: email via the internal NVIDIA SMTP relay (smtp.nvidia.com,
-# no auth needed from this network). Telegram was tried first but
-# api.telegram.org is MITM-intercepted/blocked on this network (verified
-# 2026-10-10 — a 24h-validity cert from issuer "NetAlerts Services" instead
-# of Telegram's real cert), so it's not usable from here.
-NOTIFY_EMAIL_FROM = os.getenv("LIFETIME_NOTIFY_FROM", "yenchunc@nvidia.com")
-NOTIFY_EMAIL_TO   = os.getenv("LIFETIME_NOTIFY_TO", "shuaichiou@gmail.com")
-SMTP_HOST         = os.getenv("LIFETIME_SMTP_HOST", "smtp.nvidia.com")
-SMTP_PORT         = int(os.getenv("LIFETIME_SMTP_PORT", "25"))
+# No custom notifications — CourtReserve sends its own booking confirmation
+# email. (Telegram and then a custom SMTP-relay email were tried and
+# removed; not needed.)
 
 # Target date offset: today+7 is the real booking window for the daily
 # competitive run — keep that as the default. Override only for testing a
@@ -156,6 +148,13 @@ BUCHSER_COURT_IDS = {
     "Buchser MS 5": "52125",
     "Buchser MS 6": "52108",
 }
+# Courts 1 & 2 preferred: tried first (in parallel with each other); the
+# rest are only tried if neither 1 nor 2 succeeded for that slot.
+BUCHSER_COURT_PRIORITY_GROUPS = [
+    {"Buchser MS 1": "52116", "Buchser MS 2": "52122"},
+    {"Buchser MS 3": "52123", "Buchser MS 4": "52124",
+     "Buchser MS 5": "52125", "Buchser MS 6": "52108"},
+]
 BUCHSER_TIME_SLOTS = [("5:00 PM", "6:00 PM", "60")]
 
 BASE_URL         = "https://app.courtreserve.com"
@@ -172,22 +171,6 @@ WARMUP_KEEPALIVE_SECS = 45  # keepalive ping interval during warmup wait
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s",
                     datefmt="%H:%M:%S")
 log = logging.getLogger()
-
-
-def send_email(subject, body):
-    """Best-effort notification via the internal NVIDIA SMTP relay — no auth,
-    reachable from this network (unlike api.telegram.org, which is
-    MITM-intercepted/blocked here)."""
-    try:
-        msg = MIMEText(body)
-        msg["Subject"] = subject
-        msg["From"] = NOTIFY_EMAIL_FROM
-        msg["To"] = NOTIFY_EMAIL_TO
-        s = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15)
-        s.sendmail(NOTIFY_EMAIL_FROM, [NOTIFY_EMAIL_TO], msg.as_string())
-        s.quit()
-    except Exception as e:
-        log.warning(f"Email notification failed: {e}")
 
 
 # Cloudflare rate-limit/block signatures seen on reservations.courtreserve.com
@@ -211,12 +194,8 @@ def _check_not_blocked(r):
 def self_disable_scan(reason):
     """Cloudflare blocked us — stop hammering it rather than retrying every
     cycle and extending the ban. Removes this scanner's @reboot crontab
-    entry (best effort) and alerts, then exits."""
+    entry (best effort), then exits. Logged (scan.log) only — no email."""
     log.error(f"BLOCKED by Cloudflare: {reason} — disabling scan and exiting.")
-    send_email("lifetime_autobook: SCAN DISABLED (Cloudflare block)",
-               f"Scan mode hit a Cloudflare block ({reason}) and disabled "
-               "itself (removed its @reboot crontab entry) to avoid "
-               "extending the ban. Re-enable manually once the ban clears.")
     try:
         import subprocess
         cur = subprocess.run(["crontab", "-l"], capture_output=True,
@@ -594,47 +573,60 @@ def scan_for_openings(s, interval=1200, min_days=2, max_days=7):
         time.sleep(interval)
 
 
-def run_booking(s, request_data, csrf):
-    """Slots in strict priority order; all courts in parallel per slot.
-    Returns True if a booking landed."""
+def _attempt_slot(s, request_data, csrf, start_time, end_time, duration, court_ids):
+    """Fire book() in parallel across the given court_ids for one slot.
+    Returns (won, winner_name, messages)."""
+    executor = ThreadPoolExecutor(max_workers=len(court_ids))
+    futures = {
+        executor.submit(book, s, cid, start_time, duration, csrf, request_data): name
+        for name, cid in court_ids.items()
+    }
+    won = False
+    winner_name = None
+    messages = []
+    for future in as_completed(futures):
+        name = futures[future]
+        try:
+            result = future.result()
+        except Exception as e:
+            log.warning(f"  {name}: error {e}")
+            continue
+        messages.append(str(result.get("message", "")))
+        log.info(f"  {name}: {str(result)[:200]}")
+        if result.get("isValid") and not won:
+            won = True
+            winner_name = name
+            log.info(f"BOOKING SUCCESS: {name} {start_time}–{end_time}")
+    # Cancel anything still queued — we already won this slot (or not)
+    executor.shutdown(wait=False)
+    return won, winner_name, messages
+
+
+def run_booking(s, request_data, csrf, court_priority_groups=None):
+    """Slots in strict priority order. Within a slot, courts are tried as
+    one or more priority groups — each group fired in parallel together,
+    groups tried in order (a later group only attempted if no court in an
+    earlier group won). Default: COURT_IDS as a single group (current
+    behavior for the competitive Lifetime race — fastest-responding free
+    court wins, since speed matters more than which specific court there).
+    Pass court_priority_groups for true court-level priority (used by the
+    Buchser fallback to prefer courts 1 & 2). Returns True if a booking
+    landed."""
+    groups = court_priority_groups or [COURT_IDS]
     for start_time, end_time, duration in TIME_SLOTS:
         log.info(f"Trying {start_time}–{end_time}...")
-        executor = ThreadPoolExecutor(max_workers=len(COURT_IDS))
-        futures = {
-            executor.submit(book, s, cid, start_time, duration, csrf, request_data): name
-            for name, cid in COURT_IDS.items()
-        }
-        won = False
-        winner_name = None
-        messages = []
-        for future in as_completed(futures):
-            name = futures[future]
-            try:
-                result = future.result()
-            except Exception as e:
-                log.warning(f"  {name}: error {e}")
-                continue
-            messages.append(str(result.get("message", "")))
-            log.info(f"  {name}: {str(result)[:200]}")
-            if result.get("isValid") and not won:
-                won = True
-                winner_name = name
-                log.info(f"BOOKING SUCCESS: {name} {start_time}–{end_time}")
-        # Cancel anything still queued — we already won this slot (or not)
-        executor.shutdown(wait=False)
-        if won:
-            send_email(f"Court booked — {DATE}",
-                       f"Booked {winner_name}, {start_time}–{end_time} on {DATE}.")
-            return True
-        if any("restricted to 1 court" in m for m in messages):
+        all_messages = []
+        for group in groups:
+            won, winner_name, messages = _attempt_slot(
+                s, request_data, csrf, start_time, end_time, duration, group)
+            all_messages.extend(messages)
+            if won:
+                return True
+        if any("restricted to 1 court" in m for m in all_messages):
             log.info("Per-day limit hit — a booking already landed.")
-            send_email(f"Court booked — {DATE}",
-                       f"A court is already booked for {DATE} (check the app for details).")
             return True
 
     log.error("All slots exhausted. Booking FAILED.")
-    send_email(f"Booking FAILED — {DATE}",
-               f"All preferred slots were tried for {DATE} and none succeeded.")
     return False
 
 
@@ -642,20 +634,23 @@ def try_buchser_fallback(s):
     """Fallback when every Lifetime slot is exhausted: try Buchser MS
     Tennis (customSchedulerId=16996) instead — same org/member (MemberId,
     MembershipId, ReservationTypeId all identical, verified 2026-10-11),
-    only the 5:00-6:00 PM slot. Temporarily swaps the global
-    scheduler/court/slot config (each scheduler needs its own requestData/
-    CSRF from a fresh prefetch), restores it afterward either way."""
+    only the 5:00-6:00 PM slot. Courts 1 & 2 are preferred (tried first,
+    in parallel with each other); courts 3-6 are only tried if neither 1
+    nor 2 succeeded. Temporarily swaps the global scheduler/court/slot
+    config (each scheduler needs its own requestData/CSRF from a fresh
+    prefetch), restores it afterward either way."""
     global SCHEDULER_ID, COURT_IDS, TIME_SLOTS
     orig = (SCHEDULER_ID, COURT_IDS, TIME_SLOTS)
     SCHEDULER_ID, COURT_IDS, TIME_SLOTS = (
         BUCHSER_SCHEDULER_ID, BUCHSER_COURT_IDS, BUCHSER_TIME_SLOTS)
     try:
         log.info("Lifetime exhausted — trying Buchser MS Tennis fallback "
-                 "(5:00-6:00 PM)...")
+                 "(5:00-6:00 PM, courts 1 & 2 preferred)...")
         request_data, csrf = prefetch(s)
         if csrf is None:
             return False
-        return run_booking(s, request_data, csrf)
+        return run_booking(s, request_data, csrf,
+                            court_priority_groups=BUCHSER_COURT_PRIORITY_GROUPS)
     finally:
         SCHEDULER_ID, COURT_IDS, TIME_SLOTS = orig
 
