@@ -96,7 +96,7 @@ _days_ahead_arg = next(
 if _days_ahead_arg is not None:
     DAYS_AHEAD = int(_days_ahead_arg)
 
-TARGET_DATE = datetime.date.today() + datetime.timedelta(days=DAYS_AHEAD)
+TARGET_DATE = datetime.datetime.now(ZoneInfo("America/Los_Angeles")).date() + datetime.timedelta(days=DAYS_AHEAD)
 DATE        = TARGET_DATE.strftime("%-m/%-d/%Y")
 WEEKEND     = TARGET_DATE.weekday() >= 5
 
@@ -289,16 +289,34 @@ def extract_csrf(html):
     return m.group(1) if m else None
 
 
-def prefetch(s):
-    """Grab requestData + CSRF token, auto-signing waivers if they block.
-    Returns (request_data, csrf); (None, None) if target date already booked."""
+def fetch_request_data(s):
+    """requestData token. Since ~2026-10-24 the member portal is a React
+    shell and /Online/Reservations/Bookings 302s to /Online/Portal/Index, so
+    the old HTML scrape finds nothing; the shell gets it from the
+    PortalNavigation JSON instead. Old scrape kept as a fallback."""
+    try:
+        data = _portal_nav(s)
+        rd = data.get("RequestData") or data.get("requestData")
+        if rd:
+            return rd
+        log.warning("PortalNavigation returned no RequestData — trying old scrape")
+    except CloudflareBlocked:
+        raise
+    except Exception as e:
+        log.warning(f"PortalNavigation failed ({e}) — trying old scrape")
     r = s.get(f"{BASE_URL}/Online/Reservations/Bookings/{ORG_ID}",
               params={"sId": SCHEDULER_ID}, timeout=45)
     m = re.search(r'requestData=([A-Za-z0-9%+/=]+)', r.text)
-    if not m:
+    return unquote(m.group(1)) if m else None
+
+
+def prefetch(s):
+    """Grab requestData + CSRF token, auto-signing waivers if they block.
+    Returns (request_data, csrf); (None, None) if target date already booked."""
+    request_data = fetch_request_data(s)
+    if not request_data:
         log.error("Failed to extract requestData")
         sys.exit(1)
-    request_data = unquote(m.group(1))
 
     html = fetch_booking_form(s, request_data)
     csrf = extract_csrf(html)
@@ -451,31 +469,48 @@ def _parse_ms_date(v):
     return datetime.datetime.fromtimestamp(int(m.group(1)) / 1000, RACE_TZ).date()
 
 
+def _portal_nav(s):
+    """PortalNavigation JSON (the React portal's bootstrap call): carries
+    RequestData, JwtToken and BackendUrl."""
+    r = s.get(f"{BASE_URL}/Online/Portal/PortalNavigation/{ORG_ID}",
+              headers={"X-Requested-With": "XMLHttpRequest",
+                       "Accept": "application/json"}, timeout=45)
+    _check_not_blocked(r)
+    return (r.json() or {}).get("data") or {}
+
+
 def list_reservations(s, date=None):
     """Read-only: list booked reservations for a given date (default: today,
-    America/Los_Angeles). Also the way to recover a reservation id without
-    brute-forcing — GetMyUpcomingReservations returns every upcoming
-    booking's Id directly."""
+    America/Los_Angeles), with their ids. The old GetMyUpcomingReservations
+    endpoint died with the 2026-10 React portal move; this uses the portal's
+    my-bookings API instead (SortKey = 'YYYYMMDDHHMM')."""
     target = date or datetime.datetime.now(RACE_TZ).date()
-    r = s.get(f"{BASE_URL}/Online/MyProfile/GetMyUpcomingReservations/{ORG_ID}",
-              timeout=45)
+    nav = _portal_nav(s)
+    backend = (nav.get("BackendUrl") or "").rstrip("/")
+    rd, jwt = nav.get("RequestData"), nav.get("JwtToken")
+    r = s.get(f"{backend}/api/my-bookings-portal/get-list-all-clubs",
+              params={"orgId": ORG_ID, "orgIdsString": ORG_ID,
+                      "requestData": rd, "uiCulture": "en-US",
+                      "SkipRows": "0", "IsCancelledView": "false"},
+              headers={"RequestData": rd, "Authorization": f"Bearer {jwt}",
+                       "Accept": "application/json"}, timeout=45)
     r.raise_for_status()
-    data = r.json().get("Data") or []
+    j = r.json()
     out = []
-    for res in data:
-        d = _parse_ms_date(res.get("Start"))
-        if d is None:
-            try:
-                d = datetime.datetime.strptime(res.get("DateDisplay", ""),
-                                                "%m/%d/%Y").date()
-            except Exception:
-                continue
-        if d != target:
+    for res in j.get("Data") or j.get("data") or []:
+        if res.get("IsCanceled"):
             continue
-        court = re.sub(r"<[^>]+>", "", str(res.get("CourtsDisplay") or "")).strip() or "?"
-        out.append({"id": res.get("Id", "?"), "court": court,
-                     "date": (res.get("DateDisplay") or "").strip(),
-                     "time": (res.get("TimeDisplay") or "").strip() or "?"})
+        try:
+            start = datetime.datetime.strptime(str(res.get("SortKey"))[:12],
+                                               "%Y%m%d%H%M")
+        except ValueError:
+            continue
+        if start.date() != target:
+            continue
+        out.append({"id": res.get("ReservationId", "?"),
+                    "court": res.get("CourtsDisplay") or "?",
+                    "date": start.strftime("%-m/%-d/%Y"),
+                    "time": res.get("DisplayTimes") or start.strftime("%-I:%M %p")})
     return out
 
 
@@ -545,7 +580,13 @@ def scan_for_openings(s, interval=1200, min_days=2, max_days=7):
         for offset in offsets:
             if offset in done:
                 continue
-            target = datetime.date.today() + datetime.timedelta(days=offset)
+            now_pt = datetime.datetime.now(RACE_TZ)
+            if offset >= 7 and now_pt.hour < 12:
+                # today+7 only opens at noon PT; before that every POST just
+                # gets "only allowed to reserve up to ..." (874 of those in
+                # scan.log before this check existed).
+                continue
+            target = now_pt.date() + datetime.timedelta(days=offset)
             TARGET_DATE = target
             DATE = target.strftime("%-m/%-d/%Y")
             WEEKEND = target.weekday() >= 5
